@@ -349,12 +349,17 @@ exports.register = async (req, res) => {
                                 <p style="margin: 10px 0;"><strong>Mobile Mesh:</strong> ${mobileNumber}</p>
                             </div>
 
-                            <div style="text-align: center; margin-top: 35px;">
-                                <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/login" 
-                                   style="background: #2563eb; color: #ffffff; padding: 15px 35px; border-radius: 12px; text-decoration: none; font-weight: bold; display: inline-block; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);">
-                                   Access Login Terminal
-                                </a>
-                            </div>
+                            <table border="0" cellpadding="0" cellspacing="0" style="margin: 35px auto 0 auto; text-align: center;">
+                                <tr>
+                                    <td align="center" bgcolor="#2563eb" style="border-radius: 12px;">
+                                        <a href="${process.env.FRONTEND_URL || 'https://apexclub-muse.netlify.app'}/login" 
+                                           target="_blank"
+                                           style="font-size: 16px; font-family: sans-serif; color: #ffffff; text-decoration: none; border-radius: 12px; padding: 15px 35px; border: 1px solid #2563eb; display: inline-block; font-weight: bold; background-color: #2563eb; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);">
+                                           Access Login Terminal
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
                             
                             <p style="color: #64748b; font-size: 12px; text-align: center; margin-top: 40px; border-top: 1px solid #eee; pt: 20px;">
                                 Security Protocol: Please change your passkey upon initial access for maximum security.
