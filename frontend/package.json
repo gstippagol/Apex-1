@@ -1,0 +1,73 @@
+{
+  "name": "apex-assessment-system",
+  "private": true,
+  "version": "1.0.0",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "electron:dev": "cross-env NODE_ENV=development concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
+    "electron:build": "npm run build && electron-builder"
+  },
+  "build": {
+    "appId": "com.apex.assessment",
+    "productName": "APEX Assessment Platform",
+    "directories": {
+      "output": "dist_electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ]
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.3.3",
+    "@ionic/utils-terminal": "^2.3.5",
+    "@mediapipe/face_mesh": "^0.4.1633559619",
+    "@monaco-editor/react": "^4.7.0",
+    "@tailwindcss/postcss": "^4.2.3",
+    "@tensorflow-models/coco-ssd": "^2.2.3",
+    "@tensorflow-models/face-landmarks-detection": "^1.0.6",
+    "@tensorflow/tfjs": "^4.22.0",
+    "astral-regex": "^2.0.0",
+    "autoprefixer": "^10.5.0",
+    "axios": "^1.15.1",
+    "chart.js": "^4.5.1",
+    "framer-motion": "^12.38.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.7",
+    "lucide-react": "^1.8.0",
+    "postcss": "^8.5.10",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.2.5",
+    "react-chartjs-2": "^5.3.1",
+    "react-dom": "^19.2.5",
+    "react-hot-toast": "^2.6.0",
+    "react-router-dom": "^7.14.1",
+    "slice-ansi": "^9.0.0",
+    "socket.io-client": "^4.8.3",
+    "tailwindcss": "^4.2.3"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.3.3",
+    "@capacitor/cli": "^8.3.3",
+    "@capacitor/ios": "^8.3.3",
+    "@eslint/js": "^9.39.4",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^42.0.1",
+    "electron-builder": "^26.8.1",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.5.0",
+    "vite": "^8.0.9",
+    "wait-on": "^9.0.5"
+  }
+}

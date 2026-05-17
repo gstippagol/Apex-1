@@ -1,0 +1,400 @@
+const Result = require('../models/Result');
+const Exam = require('../models/Exam');
+const Question = require('../models/Question');
+
+exports.submitExam = async (req, res) => {
+    try {
+        const { examId, answers, violations } = req.body;
+        const userId = req.user.id;
+
+        // Check for existing attempt (Block only if Suspended)
+        let result = await Result.findOne({ userId, examId });
+        if (result && result.status === 'Suspended') {
+            return res.status(403).json({ success: false, message: 'Your session has been suspended by an administrator.' });
+        }
+
+        const exam = await Exam.findById(examId).populate('questions');
+        if (!exam) {
+            return res.status(404).json({ success: false, message: 'Exam not found' });
+        }
+
+        let score = 0;
+        let totalCodingScore = 0;
+        let totalPossibleMarks = 0;
+        const processedAnswers = [];
+
+        // Pre-calculate total possible marks
+        exam.questions.forEach(q => {
+            totalPossibleMarks += (q.marks !== undefined ? q.marks : 1);
+        });
+
+        for (const answer of answers) {
+            const question = exam.questions.find(q => q._id.toString() === answer.questionId);
+            if (!question) continue;
+
+            const questionMarks = question.marks !== undefined ? question.marks : 1;
+
+            if (question.type === 'Coding') {
+                const totalTC = answer.codingResults?.totalTestCases || 0;
+                const passedTC = answer.codingResults?.testCasesPassed || 0;
+                const weight = totalTC > 0 ? (passedTC / totalTC) : 0;
+                const codingScore = weight * questionMarks;
+                
+                score += codingScore;
+                totalCodingScore += codingScore;
+
+                processedAnswers.push({
+                    questionId: question._id,
+                    code: answer.code,
+                    language: answer.language,
+                    codingResults: answer.codingResults,
+                    isCorrect: totalTC > 0 && passedTC === totalTC
+                });
+            } else {
+                const isCorrect = question.correctAnswer === answer.selectedOption;
+                if (isCorrect) score += questionMarks;
+                processedAnswers.push({
+                    questionId: question._id,
+                    selectedOption: answer.selectedOption,
+                    isCorrect
+                });
+            }
+        }
+        
+        const verdict = score >= (exam.passingMarks || 0) ? 'Pass' : 'Fail';
+
+        if (result) {
+            // Update existing ongoing result
+            result.score = Number(score.toFixed(2));
+            result.totalMarks = totalPossibleMarks;
+            result.totalCodingScore = Number(totalCodingScore.toFixed(2));
+            result.timeTaken = req.body.timeTaken || 0;
+            result.totalQuestions = exam.questions.length;
+            result.answers = processedAnswers;
+            result.violations = violations;
+            result.status = 'Submitted';
+            result.verdict = verdict;
+            await result.save();
+        } else {
+            // Fallback: Create if not exists (though startExam should have created it)
+            result = await Result.create({
+                userId,
+                examId,
+                score: Number(score.toFixed(2)),
+                totalMarks: totalPossibleMarks,
+                totalCodingScore: Number(totalCodingScore.toFixed(2)),
+                timeTaken: req.body.timeTaken || 0,
+                totalQuestions: exam.questions.length,
+                answers: processedAnswers,
+                violations,
+                status: 'Submitted',
+                verdict: verdict,
+                isPublished: false 
+            });
+        }
+
+        const io = req.app.get('io');
+        if (io) io.emit('data-updated', { type: 'result', action: 'submit' });
+
+        res.status(201).json({ success: true, data: result });
+    } catch (err) {
+        console.error('Submission Error:', err);
+        res.status(400).json({ success: false, message: err.message });
+    }
+};
+
+exports.getUserResults = async (req, res) => {
+    try {
+        const results = await Result.find({ 
+            userId: req.user.id
+        }).populate({
+            path: 'examId',
+            select: 'title questions passingMarks',
+            populate: { path: 'questions', select: 'marks' }
+        });
+        
+        // Fallback for legacy data
+        const processedResults = results.map(r => {
+            const resultObj = r.toObject();
+            if (!resultObj.totalMarks && resultObj.examId?.questions) {
+                resultObj.totalMarks = resultObj.examId.questions.reduce((acc, q) => acc + (q.marks !== undefined ? q.marks : 1), 0);
+            }
+            return resultObj;
+        });
+
+        res.status(200).json({ success: true, data: processedResults });
+    } catch (err) {
+        res.status(400).json({ success: false, message: err.message });
+    }
+};
+
+exports.getResultsByExam = async (req, res) => {
+    try {
+        const results = await Result.find({ examId: req.params.examId })
+            .populate('userId', 'name email usn role')
+            .populate({
+                path: 'examId',
+                select: 'title questions passingMarks',
+                populate: { path: 'questions' } // Populate full question details
+            })
+            .populate('answers.questionId'); // Populate answers to show question text
+            
+        // Fallback for missing totalMarks (legacy data)
+        const processedResults = results
+            .filter(r => r.userId && r.userId.role === 'student')
+            .map(r => {
+                const resultObj = r.toObject();
+                if (!resultObj.totalMarks && resultObj.examId?.questions) {
+                    resultObj.totalMarks = resultObj.examId.questions.reduce((acc, q) => acc + (q.marks !== undefined ? q.marks : 1), 0);
+                }
+                return resultObj;
+            });
+
+        res.status(200).json({ success: true, data: processedResults });
+    } catch (err) {
+        res.status(400).json({ success: false, message: err.message });
+    }
+};
+
+exports.publishResults = async (req, res) => {
+    try {
+        const { examId } = req.params;
+        
+        const results = await Result.updateMany(
+            { examId: examId }, 
+            { $set: { isPublished: true } }
+        );
+        
+        const io = req.app.get('io');
+        if (io) io.emit('data-updated', { type: 'result', action: 'publish-bulk' });
+
+        res.status(200).json({ 
+            success: true, 
+            message: `Successfully synchronized ${results.modifiedCount || results.nModified || 0} performance ledgers.`,
+            count: results.modifiedCount || results.nModified || 0
+        });
+    } catch (err) {
+        console.error('Publish Error:', err);
+        res.status(400).json({ success: false, message: 'Protocol synchronization failed' });
+    }
+};
+
+exports.toggleAttendance = async (req, res) => {
+    try {
+        const result = await Result.findById(req.params.id);
+        if (!result) return res.status(404).json({ success: false, message: 'Result not found' });
+
+        const updatedResult = await Result.findByIdAndUpdate(
+            req.params.id,
+            { attendance: result.attendance === 'Present' ? 'Absent' : 'Present' },
+            { new: true, runValidators: false }
+        );
+
+        const io = req.app.get('io');
+        if (io) io.emit('data-updated', { type: 'result', action: 'attendance-toggle' });
+
+        res.status(200).json({ success: true, data: updatedResult });
+    } catch (err) {
+        res.status(400).json({ success: false, message: err.message });
+    }
+};
+
+exports.toggleIndividualPublish = async (req, res) => {
+    try {
+        const result = await Result.findById(req.params.id);
+        if (!result) return res.status(404).json({ success: false, message: 'Result not found' });
+
+        const updatedResult = await Result.findByIdAndUpdate(
+            req.params.id,
+            { isPublished: !result.isPublished },
+            { new: true }
+        );
+
+        const io = req.app.get('io');
+        if (io) io.emit('data-updated', { type: 'result', action: 'publish-toggle' });
+
+        res.status(200).json({ success: true, data: updatedResult });
+    } catch (err) {
+        res.status(400).json({ success: false, message: err.message });
+    }
+};
+
+exports.getResultById = async (req, res) => {
+    try {
+        const result = await Result.findById(req.params.id)
+            .populate('userId', 'name email usn')
+            .populate({
+                path: 'examId',
+                select: 'title questions passingMarks',
+                populate: { path: 'questions' }
+            })
+            .populate('answers.questionId');
+            
+        if (!result) {
+            return res.status(404).json({ success: false, message: 'Result not found' });
+        }
+
+        const resultObj = result.toObject();
+        // Fallback for legacy data
+        if (!resultObj.totalMarks && resultObj.examId?.questions) {
+            resultObj.totalMarks = resultObj.examId.questions.reduce((acc, q) => acc + (q.marks !== undefined ? q.marks : 1), 0);
+        }
+        
+        if (req.user.role !== 'admin' && result.userId._id.toString() !== req.user.id) {
+            return res.status(403).json({ success: false, message: 'Not authorized for this protocol clearance' });
+        }
+
+        res.status(200).json({ success: true, data: resultObj });
+    } catch (err) {
+        res.status(400).json({ success: false, message: err.message });
+    }
+};
+
+exports.getAllResults = async (req, res) => {
+    try {
+        const results = await Result.find()
+            .populate('userId', 'name email usn role')
+            .populate({
+                path: 'examId',
+                select: 'title questions passingMarks',
+                populate: { path: 'questions', select: 'marks' }
+            });
+
+        // Fallback for legacy data
+        const processedResults = results
+            .filter(r => r.userId && r.userId.role === 'student')
+            .map(r => {
+                const resultObj = r.toObject();
+                if (!resultObj.totalMarks && resultObj.examId?.questions) {
+                    resultObj.totalMarks = resultObj.examId.questions.reduce((acc, q) => acc + (q.marks !== undefined ? q.marks : 1), 0);
+                }
+                return resultObj;
+            });
+
+        res.status(200).json({ success: true, data: processedResults });
+    } catch (err) {
+        res.status(400).json({ success: false, message: err.message });
+    }
+};
+
+/* ── Admin: delete a result so the student can retake the exam ── */
+exports.deleteResult = async (req, res) => {
+    try {
+        const result = await Result.findById(req.params.id);
+        if (!result) {
+            return res.status(404).json({ success: false, message: 'Result not found' });
+        }
+        await result.deleteOne();
+
+        const io = req.app.get('io');
+        if (io) io.emit('data-updated', { type: 'result', action: 'delete' });
+
+        res.status(200).json({ success: true, message: 'Result deleted. Student may now retake the exam.' });
+    } catch (err) {
+        res.status(400).json({ success: false, message: err.message });
+    }
+};
+/* ── Monitoring: Start an exam session ── */
+exports.startExam = async (req, res) => {
+    try {
+        const { examId } = req.body;
+        const userId = req.user.id;
+
+        let result = await Result.findOne({ userId, examId });
+        
+        if (result) {
+            // Reset for re-exam
+            result.status = 'Ongoing';
+            result.lastActive = Date.now();
+            await result.save();
+            return res.status(200).json({ success: true, data: result });
+        }
+
+        const exam = await Exam.findById(examId);
+        if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
+
+        result = await Result.create({
+            userId,
+            examId,
+            score: 0,
+            totalQuestions: exam.questions.length,
+            status: 'Ongoing',
+            lastActive: Date.now()
+        });
+
+        res.status(201).json({ success: true, data: result });
+    } catch (err) {
+        res.status(400).json({ success: false, message: err.message });
+    }
+};
+
+/* ── Monitoring: Get all active sessions ── */
+exports.getActiveSessions = async (req, res) => {
+    try {
+        const fifteenSecondsAgo = new Date(Date.now() - 15000);
+        const sessions = await Result.find({ 
+            status: 'Ongoing',
+            lastActive: { $gte: fifteenSecondsAgo }
+        })
+            .populate('userId', 'name email usn department role')
+            .populate('examId', 'title');
+
+        // Filter to ensure unique users (keep only the most recent session per user)
+        const uniqueUsers = new Map();
+        sessions.filter(s => s.userId && s.userId.role === 'student').forEach(session => {
+            const userId = session.userId?._id?.toString();
+            if (!uniqueUsers.has(userId) || new Date(session.lastActive) > new Date(uniqueUsers.get(userId).lastActive)) {
+                uniqueUsers.set(userId, session);
+            }
+        });
+
+        res.status(200).json({ success: true, data: Array.from(uniqueUsers.values()) });
+    } catch (err) {
+        res.status(400).json({ success: false, message: err.message });
+    }
+};
+
+/* ── Monitoring: Suspend a session ── */
+exports.suspendResult = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reason } = req.body;
+        const result = await Result.findByIdAndUpdate(id, {
+            status: 'Suspended',
+            suspensionReason: reason || 'Protocol violation detected'
+        }, { new: true });
+        
+        if (!result) return res.status(404).json({ success: false, message: 'Result not found' });
+
+        // Real-time notification to the student
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`student-${result.userId}`).emit('session-suspended', {
+                examId: result.examId,
+                reason: result.suspensionReason
+            });
+            io.emit('data-updated', { type: 'result', action: 'suspend' });
+        }
+
+        res.status(200).json({ success: true, data: result });
+    } catch (err) {
+        res.status(400).json({ success: false, message: err.message });
+    }
+};
+
+/* ── Monitoring: Update a live session data (snapshot, mic, violations) ── */
+exports.updateSession = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { snapshot, micActivity, violations } = req.body;
+        const update = { lastActive: Date.now() };
+        if (snapshot) update.liveSnapshot = snapshot;
+        if (micActivity !== undefined) update.micActivity = micActivity;
+        if (violations) update.violations = violations;
+        
+        await Result.findByIdAndUpdate(id, update);
+        res.status(200).json({ success: true });
+    } catch (err) {
+        res.status(400).json({ success: false });
+    }
+};
