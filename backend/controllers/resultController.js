@@ -1,6 +1,14 @@
 const Result = require('../models/Result');
 const Exam = require('../models/Exam');
 const Question = require('../models/Question');
+const { executeCode } = require('../utils/executor');
+const { analyzeCode } = require('../utils/ai');
+
+const flexibleMatch = (output, expected) => {
+    if (output === undefined || expected === undefined) return false;
+    const normalize = (str) => str.toString().trim().replace(/\r\n/g, '\n').split('\n').map(line => line.trim()).filter(line => line.length > 0).join('\n');
+    return normalize(output) === normalize(expected);
+};
 
 exports.submitExam = async (req, res) => {
     try {
@@ -35,8 +43,96 @@ exports.submitExam = async (req, res) => {
             const questionMarks = question.marks !== undefined ? question.marks : 1;
 
             if (question.type === 'Coding') {
-                const totalTC = answer.codingResults?.totalTestCases || 0;
-                const passedTC = answer.codingResults?.testCasesPassed || 0;
+                const code = answer.code || '';
+                const language = answer.language || 'c';
+
+                // Check if we need to evaluate the code
+                let codingResults = answer.codingResults;
+                if (!codingResults || !codingResults.aiFeedback || !codingResults.aiFeedback.quality || codingResults.aiFeedback.quality === 'N/A') {
+                    // Let's run the test cases and generate AI feedback on the backend
+                    const testCases = question.codingMetadata?.testCases || [];
+                    let passCount = 0;
+                    const totalCount = testCases.length;
+                    const results = [];
+                    let compilationError = null;
+
+                    for (const tc of testCases) {
+                        if (compilationError) {
+                            results.push({
+                                input: tc.input,
+                                expected: tc.expectedOutput,
+                                actual: '',
+                                isPassed: false,
+                                isVisible: tc.isVisible
+                            });
+                            continue;
+                        }
+
+                        try {
+                            const result = await executeCode(code, language, tc.input);
+
+                            if (!result.success) {
+                                if (result.isCompilationError) {
+                                    compilationError = result.error;
+                                }
+                                results.push({
+                                    input: tc.input,
+                                    expected: tc.expectedOutput,
+                                    actual: result.error || '',
+                                    isPassed: false,
+                                    isVisible: tc.isVisible
+                                });
+                                continue;
+                            }
+
+                            const isPassed = flexibleMatch(result.stdout, tc.expectedOutput);
+                            if (isPassed) passCount++;
+                            results.push({
+                                input: tc.input,
+                                expected: tc.expectedOutput,
+                                actual: result.stdout,
+                                isPassed,
+                                isVisible: tc.isVisible
+                            });
+                        } catch (err) {
+                            results.push({
+                                input: tc.input,
+                                expected: tc.expectedOutput,
+                                actual: err.message || 'Execution error',
+                                isPassed: false,
+                                isVisible: tc.isVisible
+                            });
+                        }
+                    }
+
+                    let aiFeedback = null;
+                    try {
+                        aiFeedback = await analyzeCode(
+                            code, language,
+                            question.questionText,
+                            question.codingMetadata?.constraints || '',
+                            results,
+                            question.codingMetadata?.starterCode?.[language] || ''
+                        );
+                    } catch (e) {
+                        const scorePct = totalCount > 0 ? Math.round((passCount / totalCount) * 100) : 0;
+                        aiFeedback = {
+                            quality: scorePct === 100 ? "Excellent! All edge cases satisfied." : "Functional logic with edge-case failures.",
+                            complexity: "O(n) - Estimated heuristically",
+                            suggestions: "Review edge cases and boundaries.",
+                            logicScore: scorePct
+                        };
+                    }
+
+                    codingResults = {
+                        testCasesPassed: passCount,
+                        totalTestCases: totalCount,
+                        aiFeedback
+                    };
+                }
+
+                const totalTC = codingResults.totalTestCases || 0;
+                const passedTC = codingResults.testCasesPassed || 0;
                 const weight = totalTC > 0 ? (passedTC / totalTC) : 0;
                 const codingScore = weight * questionMarks;
                 
@@ -45,9 +141,9 @@ exports.submitExam = async (req, res) => {
 
                 processedAnswers.push({
                     questionId: question._id,
-                    code: answer.code,
-                    language: answer.language,
-                    codingResults: answer.codingResults,
+                    code,
+                    language,
+                    codingResults,
                     isCorrect: totalTC > 0 && passedTC === totalTC
                 });
             } else {
@@ -303,8 +399,15 @@ exports.startExam = async (req, res) => {
         let result = await Result.findOne({ userId, examId });
         
         if (result) {
-            // Reset for re-exam
-            result.status = 'Ongoing';
+            // Block starting or resuming if already submitted
+            if (result.status === 'Submitted') {
+                return res.status(400).json({ success: false, message: 'You have already submitted this assessment.' });
+            }
+            // Block starting or resuming if suspended
+            if (result.status === 'Suspended') {
+                return res.status(403).json({ success: false, message: 'Your session has been suspended by an administrator.' });
+            }
+            // Keep status as Ongoing, update lastActive timestamp
             result.lastActive = Date.now();
             await result.save();
             return res.status(200).json({ success: true, data: result });

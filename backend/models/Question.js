@@ -16,6 +16,11 @@ const questionSchema = new mongoose.Schema({
         default: 1,
         min: 0
     },
+    difficulty: {
+        type: String,
+        enum: ['Easy', 'Medium', 'Hard'],
+        default: 'Medium'
+    },
     // For MCQ/TrueFalse
     options: [String], 
     correctAnswer: String,
@@ -23,11 +28,18 @@ const questionSchema = new mongoose.Schema({
     // For Coding Questions (HIGH PRIORITY)
     codingMetadata: {
         problemDescription: String,
-        inputDescription: String,
-        outputDescription: String,
-        constraints: String,
+        inputDescription: mongoose.Schema.Types.Mixed,
+        outputDescription: mongoose.Schema.Types.Mixed,
+        constraints: mongoose.Schema.Types.Mixed,
         sampleInput: String,
         sampleOutput: String,
+        examples: [
+            {
+                input: String,
+                output: String,
+                explanation: String
+            }
+        ],
         testCases: [
             {
                 input: String,

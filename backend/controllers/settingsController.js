@@ -8,7 +8,7 @@ exports.getSettings = async (req, res) => {
         let settings = await Settings.findOne();
         if (!settings) {
             // Create default settings if not exists
-            settings = await Settings.create({ isRegistrationOpen: true });
+            settings = await Settings.create({ isRegistrationOpen: true, isEmailEnabled: true });
         }
         res.status(200).json({ success: true, data: settings });
     } catch (err) {
@@ -21,14 +21,15 @@ exports.getSettings = async (req, res) => {
 // @access  Private/Admin
 exports.updateSettings = async (req, res) => {
     try {
-        const { isRegistrationOpen } = req.body;
+        const { isRegistrationOpen, isEmailEnabled } = req.body;
         
         let settings = await Settings.findOne();
         if (!settings) {
             settings = new Settings();
         }
         
-        settings.isRegistrationOpen = isRegistrationOpen;
+        if (isRegistrationOpen !== undefined) settings.isRegistrationOpen = isRegistrationOpen;
+        if (isEmailEnabled !== undefined) settings.isEmailEnabled = isEmailEnabled;
         settings.lastUpdatedBy = req.user.id;
         settings.updatedAt = Date.now();
         

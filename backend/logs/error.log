@@ -87,3 +87,7 @@
 {"level":"error","message":"Port 5000 is already in use. Please kill the process or use a different port.","service":"apex-backend","timestamp":"2026-05-11 15:17:22"}
 {"level":"error","message":"Port 5000 is already in use. Please kill the process or use a different port.","service":"apex-backend","timestamp":"2026-05-11 16:12:02"}
 {"level":"error","message":"Port 5000 is already in use. Please kill the process or use a different port.","service":"apex-backend","timestamp":"2026-05-17 17:50:10"}
+{"level":"error","message":"Port 5000 is already in use. Please kill the process or use a different port.","service":"apex-backend","timestamp":"2026-05-19 00:00:25"}
+{"level":"error","message":"Port 5000 is already in use. Please kill the process or use a different port.","service":"apex-backend","timestamp":"2026-05-24 00:28:51"}
+{"level":"error","message":"Port 5000 is already in use. Please kill the process or use a different port.","service":"apex-backend","timestamp":"2026-05-24 00:52:24"}
+{"level":"error","message":"Port 5000 is already in use. Please kill the process or use a different port.","service":"apex-backend","timestamp":"2026-05-24 00:52:42"}

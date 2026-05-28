@@ -5,6 +5,10 @@ const settingsSchema = new mongoose.Schema({
         type: Boolean,
         default: true
     },
+    isEmailEnabled: {
+        type: Boolean,
+        default: true
+    },
     lastUpdatedBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'

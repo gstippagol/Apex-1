@@ -466,6 +466,7 @@ app.use('/api/notices', notices);
 app.use('/api/quiz', quiz);
 app.use('/api/certificates', require('./routes/certificates'));
 app.use('/api/settings', require('./routes/settings'));
+app.use('/api/feedback', require('./routes/feedback'));
 
 // Serve static files from uploads folder
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -519,6 +520,18 @@ io.on('connection', (socket) => {
         });
     });
 
+    socket.on('admin-message', (data) => {
+        if (!data || !data.targetId) {
+            logger.warn('Admin message failed: Missing targetId');
+            return;
+        }
+        logger.info(`Routing admin message to student-${data.targetId}: ${data.message}`);
+        io.to(`student-${data.targetId.toString()}`).emit('admin-message', {
+            message: data.message,
+            timestamp: Date.now()
+        });
+    });
+
     socket.on('signal', (data) => {
         if (!data) return;
         const { targetId, signalData, fromId } = data;
@@ -568,6 +581,36 @@ const gracefulShutdown = (signal) => {
 const startApp = async () => {
     try {
         await connectDB();
+        
+        // Auto-delete feedback after 7 days
+        const cleanupOldFeedback = async () => {
+            try {
+                const Feedback = require('./models/Feedback');
+                const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                const result = await Feedback.deleteMany({ createdAt: { $lt: sevenDaysAgo } });
+                if (result.deletedCount > 0) {
+                    logger.info(`Auto-cleaned ${result.deletedCount} old feedback entries on startup.`);
+                }
+            } catch (err) {
+                logger.error(`Feedback cleanup error: ${err.message}`);
+            }
+        };
+        await cleanupOldFeedback();
+
+        // Run cleanup every 24 hours
+        setInterval(async () => {
+            try {
+                const Feedback = require('./models/Feedback');
+                const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                const result = await Feedback.deleteMany({ createdAt: { $lt: sevenDaysAgo } });
+                if (result.deletedCount > 0) {
+                    logger.info(`Auto-cleaned ${result.deletedCount} old feedback entries.`);
+                }
+            } catch (err) {
+                logger.error(`Feedback cleanup error: ${err.message}`);
+            }
+        }, 24 * 60 * 60 * 1000);
+
         server.listen(PORT, () => {
             logger.info(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
         });

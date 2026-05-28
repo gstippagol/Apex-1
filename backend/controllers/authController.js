@@ -16,6 +16,10 @@ exports.sendOTP = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Registration protocol is currently offline. Please contact administrator.' });
         }
 
+        if (settings && settings.isEmailEnabled === false) {
+            return res.status(403).json({ success: false, message: 'Email verification services are currently offline. Please contact administrator.' });
+        }
+
         const { email, name, usn, mobileNumber } = req.body;
 
         // Check for duplicates before sending OTP
@@ -96,6 +100,11 @@ exports.verifyOTP = async (req, res) => {
 
         const { name, email, password, role, department, usn, mobileNumber, otp } = req.body;
 
+        // Role Restriction: Self-registered users can only be registered as students
+        if (role && role !== 'student') {
+            return res.status(403).json({ success: false, message: 'Authorization Failure: Self-registered accounts are restricted to student roles' });
+        }
+
         // Verify OTP
         const otpRecord = await OTP.findOne({ email, otp });
         if (!otpRecord) {
@@ -132,6 +141,11 @@ exports.verifyOTP = async (req, res) => {
 exports.forgotPassword = async (req, res) => {
     try {
         const { email } = req.body;
+        const settings = await Settings.findOne();
+        if (settings && settings.isEmailEnabled === false) {
+            return res.status(403).json({ success: false, message: 'Email recovery services are currently offline. Please contact administrator.' });
+        }
+
         const user = await User.findOne({ email });
         
         if (!user) {
@@ -249,6 +263,11 @@ exports.register = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Authorization Failure: Admins cannot provision Super Admin accounts' });
         }
 
+        // Role Restriction: Guests/non-admins cannot register administrative accounts
+        if (requesterRole !== 'admin' && requesterRole !== 'superadmin' && role && role !== 'student') {
+            return res.status(403).json({ success: false, message: 'Authorization Failure: Guests are only authorized to register as students' });
+        }
+
         // Enforcement: Only admins can register if registration is off
         if (!isRegistrationOpen && requesterRole !== 'admin' && requesterRole !== 'superadmin') {
             return res.status(403).json({ success: false, message: 'Registration protocol is currently offline' });
@@ -315,8 +334,8 @@ exports.register = async (req, res) => {
             mobileNumber
         });
 
-        // Onboarding Email (Only for Manual Registration by Admin/SuperAdmin)
-        if (requesterRole === 'admin' || requesterRole === 'superadmin') {
+        // Onboarding Email (Only for Manual Registration by Admin/SuperAdmin if email service is active)
+        if ((requesterRole === 'admin' || requesterRole === 'superadmin') && (!settings || settings.isEmailEnabled !== false)) {
             try {
                 const transporter = nodemailer.createTransport({
                     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
