@@ -4,9 +4,9 @@ import { toast } from 'react-hot-toast';
 import { Bell, Info, AlertTriangle, Megaphone } from 'lucide-react';
 
 const NotificationHandler = () => {
-    const API_BASE = (window.location.hostname.includes('loca.lt') || window.location.hostname.includes('trycloudflare.com'))
-        ? 'https://green-ears-first-donated.trycloudflare.com'
-        : `http://${window.location.hostname}:5000`;
+    const API_BASE = (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1'))
+    ? `http://${window.location.hostname}:5000`
+    : 'https://apex-s1q2.onrender.com';
 
     useEffect(() => {
         const socket = io(API_BASE);

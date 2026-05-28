@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Navbar from '../components/Navbar';
+import LoadingScreen from '../components/LoadingScreen';
 import { 
     ArrowLeft, Edit2, Play, Square, Trash2, Plus, 
     CheckCircle2, Clock, Settings, Award, Calendar,
@@ -10,15 +11,81 @@ import {
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import Editor from '@monaco-editor/react';
+import ConfirmModal from '../components/ConfirmModal';
+
+const getInitialArray = (val) => {
+    if (Array.isArray(val)) return val.length > 0 ? val : [''];
+    if (typeof val === 'string' && val.trim()) {
+        return val.split('\n').map(s => s.trim()).filter(Boolean);
+    }
+    return [''];
+};
+
+const getInitialExamples = (meta) => {
+    if (Array.isArray(meta.examples) && meta.examples.length > 0) {
+        return meta.examples;
+    }
+    if (meta.sampleInput || meta.sampleOutput) {
+        return [{ input: meta.sampleInput || '', output: meta.sampleOutput || '', explanation: '' }];
+    }
+    return [{ input: '', output: '', explanation: '' }];
+};
 
 const QuizDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const [quiz, setQuiz] = useState(null);
     const [loading, setLoading] = useState(true);
-    const API_BASE = (window.location.hostname.includes('loca.lt') || window.location.hostname.includes('trycloudflare.com'))
-        ? 'https://green-ears-first-donated.trycloudflare.com'
-        : `http://${window.location.hostname}:5000`;
+
+    const getLocalISO = (date) => {
+        const offset = date.getTimezoneOffset();
+        const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+        return localDate.toISOString();
+    };
+    const minDate = getLocalISO(new Date()).split('T')[0];
+
+    const [confirmModal, setConfirmModal] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: null,
+        confirmText: 'Confirm',
+        type: 'danger'
+    });
+
+    const triggerConfirm = ({ title, message, onConfirm, confirmText = 'Confirm', type = 'danger' }) => {
+        setConfirmModal({
+            isOpen: true,
+            title,
+            message,
+            onConfirm: () => {
+                onConfirm();
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+            },
+            confirmText,
+            type
+        });
+    };
+
+    const handleEraseQuiz = () => {
+        triggerConfirm({
+            title: 'Erase Quiz Blueprint',
+            message: `Are you sure you want to permanently erase "${quiz?.title}"? This action cannot be undone.`,
+            confirmText: 'Erase Quiz',
+            onConfirm: async () => {
+                try {
+                    await axios.delete(`${API_BASE}/api/quiz/${id}`); 
+                    navigate('/admin?tab=quizzes'); 
+                } catch (err) {
+                    toast.error('Erase sequence compromised');
+                }
+            }
+        });
+    };
+
+    const API_BASE = (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1'))
+    ? `http://${window.location.hostname}:5000`
+    : 'https://apex-s1q2.onrender.com';
 
     const resolveImageUrl = (url) => {
         if (!url) return '';
@@ -51,14 +118,16 @@ const QuizDetails = () => {
         marks: 1,
         options: ['', '', '', ''],
         correctAnswer: '',
+        difficulty: 'Medium',
         images: [{ url: '', purpose: '', scale: 100 }],
         codingMetadata: {
             problemDescription: '',
-            inputDescription: '',
-            outputDescription: '',
-            constraints: '',
+            inputDescription: [''],
+            outputDescription: [''],
+            constraints: [''],
             sampleInput: '',
             sampleOutput: '',
+            examples: [{ input: '', output: '', explanation: '' }],
             testCases: [{ input: '', expectedOutput: '', isVisible: true }],
             starterCode: {
                 python: '',
@@ -111,11 +180,17 @@ const QuizDetails = () => {
     const handleQuestionSubmit = async (e) => {
         e.preventDefault();
         try {
+            const finalQForm = { ...qForm };
+            if (finalQForm.type === 'Coding' && finalQForm.codingMetadata) {
+                const examples = finalQForm.codingMetadata.examples || [];
+                finalQForm.codingMetadata.sampleInput = examples[0]?.input || '';
+                finalQForm.codingMetadata.sampleOutput = examples[0]?.output || '';
+            }
             if (currentQuestion) {
-                await axios.put(`${API_BASE}/api/questions/${currentQuestion._id}`, qForm);
+                await axios.put(`${API_BASE}/api/questions/${currentQuestion._id}`, finalQForm);
                 toast.success('Question Logic Updated');
             } else {
-                const res = await axios.post(`${API_BASE}/api/questions`, qForm);
+                const res = await axios.post(`${API_BASE}/api/questions`, finalQForm);
                 const qId = res.data.data._id;
                 await axios.put(`${API_BASE}/api/quiz/${id}`, {
                     questions: [...quiz.questions.map(q => q._id), qId]
@@ -136,13 +211,15 @@ const QuizDetails = () => {
             setQForm({ 
                 ...q, 
                 marks: q.marks !== undefined ? q.marks : 1,
+                difficulty: q.difficulty || 'Medium',
                 codingMetadata: {
                     problemDescription: meta.problemDescription || '',
-                    inputDescription: meta.inputDescription || '',
-                    outputDescription: meta.outputDescription || '',
-                    constraints: meta.constraints || '',
+                    inputDescription: getInitialArray(meta.inputDescription),
+                    outputDescription: getInitialArray(meta.outputDescription),
+                    constraints: getInitialArray(meta.constraints),
                     sampleInput: meta.sampleInput || '',
                     sampleOutput: meta.sampleOutput || '',
+                    examples: getInitialExamples(meta),
                     testCases: meta.testCases || [{ input: '', expectedOutput: '', isVisible: true }],
                     starterCode: meta.starterCode || { python: '', java: '', cpp: '', c: '' }
                 } 
@@ -155,14 +232,16 @@ const QuizDetails = () => {
                 marks: 1,
                 options: ['', '', '', ''], 
                 correctAnswer: '', 
+                difficulty: 'Medium',
                 images: [{ url: '', purpose: '', scale: 100 }],
                 codingMetadata: { 
                     problemDescription: '', 
-                    inputDescription: '', 
-                    outputDescription: '', 
-                    constraints: '', 
+                    inputDescription: [''], 
+                    outputDescription: [''], 
+                    constraints: [''], 
                     sampleInput: '', 
                     sampleOutput: '', 
+                    examples: [{ input: '', output: '', explanation: '' }],
                     testCases: [{ input: '', expectedOutput: '', isVisible: true }],
                     starterCode: { python: '', java: '', cpp: '', c: '' }
                 } 
@@ -233,7 +312,7 @@ const QuizDetails = () => {
         setQForm({ ...qForm, images: newImages });
     };
 
-    if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 font-black text-blue-600 animate-pulse text-2xl tracking-tighter">ACCESSING QUIZ BUILDER...</div>;
+    if (loading) return <LoadingScreen message="Accessing Quiz Builder..." dark={false} fullScreen={true} />;
     if (!quiz) return <div className="min-h-screen flex items-center justify-center">Record Expired</div>;
     const totalMarks = quiz.questions.reduce((sum, q) => sum + (q.marks !== undefined ? Number(q.marks) : 1), 0);
 
@@ -325,22 +404,27 @@ const QuizDetails = () => {
                         <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 w-full md:w-auto">
                              <StatusToggle quiz={quiz} onPublish={openPublishModal} onEnd={stopQuiz} onWithdraw={withdrawQuiz} onRestart={restartQuiz} />
                              <button 
-                                disabled={quiz.status !== 'Draft' && quiz.status !== 'Withdrawn'}
-                                onClick={() => setShowQuizModal(true)} 
-                                className={`p-4 bg-slate-900 text-white rounded-2xl hover:bg-black transition-all shadow-xl shadow-slate-900/10 active:scale-95 flex items-center justify-center min-h-[56px] ${(quiz.status !== 'Draft' && quiz.status !== 'Withdrawn') ? 'opacity-30 cursor-not-allowed' : ''}`}
-                            >
-                                <Edit2 size={22} />
-                            </button>
-                             <button onClick={async () => { 
-                                 if(window.confirm('Erase this quiz?')) { 
-                                    try {
-                                        await axios.delete(`${API_BASE}/api/quiz/${id}`); 
-                                        navigate('/admin?tab=quizzes'); 
-                                    } catch (err) {
-                                        toast.error('Erase sequence compromised');
-                                    }
-                                 }
-                             }} className="p-4 bg-slate-50 text-slate-400 hover:text-red-600 rounded-2xl transition-all border border-slate-200 active:scale-95 flex items-center justify-center min-h-[56px]"><Trash2 size={22} /></button>
+                                 disabled={quiz.status !== 'Draft' && quiz.status !== 'Withdrawn'}
+                                 onClick={() => setShowQuizModal(true)} 
+                                 className={`p-4 rounded-2xl transition-all flex items-center justify-center min-h-[56px] ${
+                                     (quiz.status !== 'Draft' && quiz.status !== 'Withdrawn')
+                                         ? 'bg-slate-100 text-slate-300 border border-slate-200 cursor-not-allowed opacity-50 shadow-none' 
+                                         : 'bg-slate-900 text-white hover:bg-black shadow-xl shadow-slate-900/10 active:scale-95'
+                                 }`}
+                             >
+                                 <Edit2 size={22} />
+                             </button>
+                             <button 
+                                 disabled={quiz.status !== 'Draft' && quiz.status !== 'Withdrawn'}
+                                 onClick={handleEraseQuiz} 
+                                 className={`p-4 rounded-2xl transition-all border flex items-center justify-center min-h-[56px] ${
+                                     (quiz.status !== 'Draft' && quiz.status !== 'Withdrawn')
+                                         ? 'bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed opacity-50 shadow-none' 
+                                         : 'bg-slate-50 text-slate-400 border-slate-200 hover:text-red-600 hover:border-red-100 hover:bg-red-50 active:scale-95'
+                                 }`}
+                             >
+                                 <Trash2 size={22} />
+                             </button>
                         </div>
                     </div>
 
@@ -375,16 +459,21 @@ const QuizDetails = () => {
                                                 </button>
                                                 <button 
                                                     disabled={quiz.status !== 'Draft' && quiz.status !== 'Withdrawn'}
-                                                    onClick={async () => { 
-                                                        if(window.confirm('Remove from portfolio?')) { 
-                                                            try {
-                                                                await axios.delete(`${API_BASE}/api/questions/${q._id}`); 
-                                                                fetchQuiz(); 
-                                                            } catch (err) {
-                                                                toast.error('Removal sequence failed');
-                                                            }
-                                                        }
-                                                    }} 
+                                                    onClick={() => { 
+                                                        triggerConfirm({
+                                                            title: 'Erase Question Protocol',
+                                                            message: 'Are you sure you want to permanently remove this question from the quiz portfolio?',
+                                                            confirmText: 'Erase Question',
+                                                            onConfirm: async () => {
+                                                                try {
+                                                                    await axios.delete(`${API_BASE}/api/questions/${q._id}`); 
+                                                                    fetchQuiz(); 
+                                                                } catch (err) {
+                                                                    toast.error('Removal sequence failed');
+                                                                 }
+                                                             }
+                                                         });
+                                                     }} 
                                                     className={`p-3 text-red-500 bg-white border border-red-50 rounded-[1rem] hover:shadow-lg transition-all ${(quiz.status !== 'Draft' && quiz.status !== 'Withdrawn') ? 'opacity-30 cursor-not-allowed' : ''}`}
                                                 >
                                                     <Trash2 size={20} />
@@ -427,7 +516,7 @@ const QuizDetails = () => {
                                 <div className="grid grid-cols-1 gap-6">
                                     <div>
                                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Scheduled Date</label>
-                                        <input type="date" value={quizForm.scheduledDate} onChange={e => setQuizForm({...quizForm, scheduledDate: e.target.value})} className="w-full p-6 bg-slate-50 border border-slate-200 rounded-[1.5rem] font-bold outline-none focus:ring-4 focus:ring-blue-500/10" />
+                                        <input type="date" min={minDate} value={quizForm.scheduledDate} onChange={e => setQuizForm({...quizForm, scheduledDate: e.target.value})} className="w-full p-6 bg-slate-50 border border-slate-200 rounded-[1.5rem] font-bold outline-none focus:ring-4 focus:ring-blue-500/10" />
                                     </div>
                                 </div>
 
@@ -514,14 +603,7 @@ const QuizDetails = () => {
                                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 sm:mb-4">Marks</label>
                                         <input type="number" required value={qForm.marks} onChange={e => setQForm({ ...qForm, marks: Number(e.target.value) })} className="w-full p-4 sm:p-6 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-[1.5rem] font-bold text-sm sm:text-base outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" />
                                     </div>
-                                    <div>
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 sm:mb-4">Difficulty</label>
-                                        <select value={qForm.difficulty || 'Medium'} onChange={e => setQForm({...qForm, difficulty: e.target.value})} className="w-full p-4 sm:p-6 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-[1.5rem] font-bold text-sm sm:text-base outline-none focus:ring-4 focus:ring-blue-500/10 transition-all">
-                                            <option value="Easy">Easy</option>
-                                            <option value="Medium">Medium</option>
-                                            <option value="Hard">Hard</option>
-                                        </select>
-                                    </div>
+
                                     <div className="md:col-span-2">
                                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 sm:mb-4">Instruction Text</label>
                                         <textarea rows="3" required value={qForm.questionText} onChange={e => setQForm({...qForm, questionText: e.target.value})} className="w-full p-5 sm:p-8 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-[2rem] font-bold text-sm sm:text-base outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" />
@@ -622,28 +704,260 @@ const QuizDetails = () => {
                                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="md:col-span-2">
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Difficulty Level</label>
+                                                <div className="flex gap-4">
+                                                    {['Easy', 'Medium', 'Hard'].map(level => (
+                                                        <button
+                                                            key={level}
+                                                            type="button"
+                                                            onClick={() => setQForm({ ...qForm, difficulty: level })}
+                                                            className={`px-6 py-3 rounded-xl font-black text-xs uppercase tracking-wider border-2 transition-all ${
+                                                                qForm.difficulty === level
+                                                                    ? level === 'Easy' ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-600/20'
+                                                                    : level === 'Medium' ? 'bg-amber-500 border-amber-500 text-white shadow-lg shadow-amber-500/20'
+                                                                    : 'bg-rose-600 border-rose-600 text-white shadow-lg shadow-rose-600/20'
+                                                                    : 'bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300'
+                                                            }`}
+                                                        >
+                                                            {level}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div className="md:col-span-2">
                                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Problem Statement</label>
                                                 <textarea rows="4" value={qForm.codingMetadata.problemDescription} onChange={e => setQForm({...qForm, codingMetadata: {...qForm.codingMetadata, problemDescription: e.target.value}})} className="w-full p-6 bg-slate-50 border border-slate-200 rounded-[1.5rem] font-bold outline-none focus:ring-4 focus:ring-blue-500/10" placeholder="Detailed problem requirements..." />
                                             </div>
-                                            <div>
-                                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Input Description</label>
-                                                <textarea rows="2" value={qForm.codingMetadata.inputDescription} onChange={e => setQForm({...qForm, codingMetadata: {...qForm.codingMetadata, inputDescription: e.target.value}})} className="w-full p-5 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none" placeholder="Describe input format..." />
+                                            <div className="md:col-span-1 space-y-3">
+                                                <div className="flex justify-between items-center">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono">Input Description</label>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setQForm({
+                                                            ...qForm,
+                                                            codingMetadata: {
+                                                                ...qForm.codingMetadata,
+                                                                inputDescription: [...qForm.codingMetadata.inputDescription, '']
+                                                            }
+                                                        })}
+                                                        className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all flex items-center justify-center"
+                                                    >
+                                                        <Plus size={12} />
+                                                    </button>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    {qForm.codingMetadata.inputDescription.map((desc, idx) => (
+                                                        <div key={idx} className="flex gap-2 items-center">
+                                                            <input
+                                                                type="text"
+                                                                required
+                                                                placeholder={`Bullet point ${idx + 1}`}
+                                                                value={desc}
+                                                                onChange={e => {
+                                                                    const newArr = [...qForm.codingMetadata.inputDescription];
+                                                                    newArr[idx] = e.target.value;
+                                                                    setQForm({...qForm, codingMetadata: {...qForm.codingMetadata, inputDescription: newArr}});
+                                                                }}
+                                                                className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-medium text-xs focus:bg-white transition-all outline-none"
+                                                            />
+                                                            {qForm.codingMetadata.inputDescription.length > 1 && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const newArr = [...qForm.codingMetadata.inputDescription];
+                                                                        newArr.splice(idx, 1);
+                                                                        setQForm({...qForm, codingMetadata: {...qForm.codingMetadata, inputDescription: newArr}});
+                                                                    }}
+                                                                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
-                                            <div>
-                                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Output Description</label>
-                                                <textarea rows="2" value={qForm.codingMetadata.outputDescription} onChange={e => setQForm({...qForm, codingMetadata: {...qForm.codingMetadata, outputDescription: e.target.value}})} className="w-full p-5 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none" placeholder="Describe output format..." />
+                                            <div className="md:col-span-1 space-y-3">
+                                                <div className="flex justify-between items-center">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono">Output Description</label>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setQForm({
+                                                            ...qForm,
+                                                            codingMetadata: {
+                                                                ...qForm.codingMetadata,
+                                                                outputDescription: [...qForm.codingMetadata.outputDescription, '']
+                                                            }
+                                                        })}
+                                                        className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all flex items-center justify-center"
+                                                    >
+                                                        <Plus size={12} />
+                                                    </button>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    {qForm.codingMetadata.outputDescription.map((desc, idx) => (
+                                                        <div key={idx} className="flex gap-2 items-center">
+                                                            <input
+                                                                type="text"
+                                                                required
+                                                                placeholder={`Bullet point ${idx + 1}`}
+                                                                value={desc}
+                                                                onChange={e => {
+                                                                    const newArr = [...qForm.codingMetadata.outputDescription];
+                                                                    newArr[idx] = e.target.value;
+                                                                    setQForm({...qForm, codingMetadata: {...qForm.codingMetadata, outputDescription: newArr}});
+                                                                }}
+                                                                className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-medium text-xs focus:bg-white transition-all outline-none"
+                                                            />
+                                                            {qForm.codingMetadata.outputDescription.length > 1 && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const newArr = [...qForm.codingMetadata.outputDescription];
+                                                                        newArr.splice(idx, 1);
+                                                                        setQForm({...qForm, codingMetadata: {...qForm.codingMetadata, outputDescription: newArr}});
+                                                                    }}
+                                                                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
-                                            <div className="md:col-span-2">
-                                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Constraints</label>
-                                                <input type="text" value={qForm.codingMetadata.constraints} onChange={e => setQForm({...qForm, codingMetadata: {...qForm.codingMetadata, constraints: e.target.value}})} className="w-full p-5 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none" placeholder="e.g., 1 <= N <= 10^5" />
+                                            <div className="md:col-span-2 space-y-3">
+                                                <div className="flex justify-between items-center">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono">Constraints</label>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setQForm({
+                                                            ...qForm,
+                                                            codingMetadata: {
+                                                                ...qForm.codingMetadata,
+                                                                constraints: [...qForm.codingMetadata.constraints, '']
+                                                            }
+                                                        })}
+                                                        className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all flex items-center justify-center"
+                                                    >
+                                                        <Plus size={12} />
+                                                    </button>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    {qForm.codingMetadata.constraints.map((c, idx) => (
+                                                        <div key={idx} className="flex gap-2 items-center">
+                                                            <input
+                                                                type="text"
+                                                                required
+                                                                placeholder={`Bullet point ${idx + 1}`}
+                                                                value={c}
+                                                                onChange={e => {
+                                                                    const newArr = [...qForm.codingMetadata.constraints];
+                                                                    newArr[idx] = e.target.value;
+                                                                    setQForm({...qForm, codingMetadata: {...qForm.codingMetadata, constraints: newArr}});
+                                                                }}
+                                                                className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-medium text-xs focus:bg-white transition-all outline-none"
+                                                            />
+                                                            {qForm.codingMetadata.constraints.length > 1 && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const newArr = [...qForm.codingMetadata.constraints];
+                                                                        newArr.splice(idx, 1);
+                                                                        setQForm({...qForm, codingMetadata: {...qForm.codingMetadata, constraints: newArr}});
+                                                                    }}
+                                                                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
-                                            <div>
-                                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Sample Input</label>
-                                                <textarea rows="2" value={qForm.codingMetadata.sampleInput} onChange={e => setQForm({...qForm, codingMetadata: {...qForm.codingMetadata, sampleInput: e.target.value}})} className="w-full p-5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs" placeholder="Sample input for students..." />
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Sample Output</label>
-                                                <textarea rows="2" value={qForm.codingMetadata.sampleOutput} onChange={e => setQForm({...qForm, codingMetadata: {...qForm.codingMetadata, sampleOutput: e.target.value}})} className="w-full p-5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs" placeholder="Expected sample output..." />
+                                            <div className="md:col-span-2 space-y-6">
+                                                <div className="flex justify-between items-center">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono">Sample Examples (Visible to Students)</label>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setQForm({
+                                                            ...qForm,
+                                                            codingMetadata: {
+                                                                ...qForm.codingMetadata,
+                                                                examples: [...qForm.codingMetadata.examples, { input: '', output: '', explanation: '' }]
+                                                            }
+                                                        })}
+                                                        className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 hover:bg-blue-100 transition-all shadow-sm outline-none"
+                                                    >
+                                                        <Plus size={14} /> Add Example
+                                                    </button>
+                                                </div>
+                                                <div className="grid grid-cols-1 gap-6">
+                                                    {qForm.codingMetadata.examples.map((ex, idx) => (
+                                                        <div key={idx} className="p-6 bg-slate-50 rounded-2xl border border-slate-200/60 relative group/example shadow-sm">
+                                                            <div className="flex items-center justify-between mb-4">
+                                                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Example {idx + 1}</span>
+                                                                {qForm.codingMetadata.examples.length > 1 && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            const newArr = [...qForm.codingMetadata.examples];
+                                                                            newArr.splice(idx, 1);
+                                                                            setQForm({...qForm, codingMetadata: {...qForm.codingMetadata, examples: newArr}});
+                                                                        }}
+                                                                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                                    >
+                                                                        <Trash2 size={16} />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                <div>
+                                                                    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Input</label>
+                                                                    <textarea
+                                                                        rows="2"
+                                                                        placeholder="Input for this example..."
+                                                                        value={ex.input}
+                                                                        onChange={e => {
+                                                                            const newArr = [...qForm.codingMetadata.examples];
+                                                                            newArr[idx].input = e.target.value;
+                                                                            setQForm({...qForm, codingMetadata: {...qForm.codingMetadata, examples: newArr}});
+                                                                        }}
+                                                                        className="w-full p-4 bg-white border border-slate-200 rounded-xl font-mono text-xs focus:ring-4 focus:ring-blue-500/5 outline-none shadow-inner"
+                                                                    />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Output</label>
+                                                                    <textarea
+                                                                        rows="2"
+                                                                        placeholder="Expected output..."
+                                                                        value={ex.output}
+                                                                        onChange={e => {
+                                                                            const newArr = [...qForm.codingMetadata.examples];
+                                                                            newArr[idx].output = e.target.value;
+                                                                            setQForm({...qForm, codingMetadata: {...qForm.codingMetadata, examples: newArr}});
+                                                                        }}
+                                                                        className="w-full p-4 bg-white border border-slate-200 rounded-xl font-mono text-xs focus:ring-4 focus:ring-blue-500/5 outline-none shadow-inner"
+                                                                    />
+                                                                </div>
+                                                                <div className="md:col-span-2">
+                                                                    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Explanation (Optional)</label>
+                                                                    <textarea
+                                                                        rows="2"
+                                                                        placeholder="Explanation of how the input leads to the output..."
+                                                                        value={ex.explanation || ''}
+                                                                        onChange={e => {
+                                                                            const newArr = [...qForm.codingMetadata.examples];
+                                                                            newArr[idx].explanation = e.target.value;
+                                                                            setQForm({...qForm, codingMetadata: {...qForm.codingMetadata, examples: newArr}});
+                                                                        }}
+                                                                        className="w-full p-4 bg-white border border-slate-200 rounded-xl font-medium text-xs focus:ring-4 focus:ring-blue-500/5 outline-none"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
                                         </div>
 
@@ -767,6 +1081,17 @@ const QuizDetails = () => {
                     </div>
                 )}
             </AnimatePresence>
+
+            {/* Premium Custom Confirmation Overlay */}
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                onConfirm={confirmModal.onConfirm}
+                onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                confirmText={confirmModal.confirmText}
+                type={confirmModal.type}
+            />
         </div>
     );
 };

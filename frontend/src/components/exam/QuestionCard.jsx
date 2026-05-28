@@ -21,7 +21,9 @@ const QuestionCard = ({
     isFirst,
     isLast,
 }) => {
-    const API_BASE = `http://${window.location.hostname}:5000`;
+    const API_BASE = (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1'))
+    ? `http://${window.location.hostname}:5000`
+    : 'https://apex-s1q2.onrender.com';
     const resolveImageUrl = (url) => {
         if (!url) return '';
         if (url.startsWith('http')) return url;

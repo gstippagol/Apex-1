@@ -58,16 +58,16 @@ const WebcamMonitor = ({ allowCamera = true, allowMicrophone = false, onStatusCh
         const saved = localStorage.getItem('user');
         if (saved) {
             const user = JSON.parse(saved);
-            setUserId(user._id);
+            setUserId(user.id || user._id);
         }
         
         const pathParts = window.location.pathname.split('/');
         const id = pathParts[pathParts.length - 1];
         setExamId(id);
 
-        const socketUrl = (window.location.hostname.includes('loca.lt') || window.location.hostname.includes('trycloudflare.com')) 
-            ? 'https://green-ears-first-donated.trycloudflare.com' 
-            : `http://${window.location.hostname}:5000`;
+        const socketUrl = (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1'))
+            ? `http://${window.location.hostname}:5000`
+            : 'https://apex-s1q2.onrender.com';
         const socket = io(socketUrl);
         socketRef.current = socket;
 
@@ -124,7 +124,7 @@ const WebcamMonitor = ({ allowCamera = true, allowMicrophone = false, onStatusCh
         let currentUserId = null;
         if (saved) {
             const user = JSON.parse(saved);
-            currentUserId = user._id;
+            currentUserId = user.id || user._id;
             setUserId(currentUserId);
         }
         
@@ -132,9 +132,9 @@ const WebcamMonitor = ({ allowCamera = true, allowMicrophone = false, onStatusCh
         const id = pathParts[pathParts.length - 1];
         setExamId(id);
 
-        const socketUrl = (window.location.hostname.includes('loca.lt') || window.location.hostname.includes('trycloudflare.com')) 
-            ? 'https://green-ears-first-donated.trycloudflare.com' 
-            : `http://${window.location.hostname}:5000`;
+        const socketUrl = (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1'))
+            ? `http://${window.location.hostname}:5000`
+            : 'https://apex-s1q2.onrender.com';
             
         const socket = io(socketUrl, {
             reconnectionAttempts: 5,
@@ -157,9 +157,9 @@ const WebcamMonitor = ({ allowCamera = true, allowMicrophone = false, onStatusCh
         
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
-        const API_BASE = (window.location.hostname.includes('loca.lt') || window.location.hostname.includes('trycloudflare.com')) 
-            ? 'https://green-ears-first-donated.trycloudflare.com' 
-            : `http://${window.location.hostname}:5000`;
+        const API_BASE = (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1'))
+    ? `http://${window.location.hostname}:5000`
+    : 'https://apex-s1q2.onrender.com';
 
         let audioContext, analyser, dataArray, source;
         if (allowMicrophone && streamRef.current) {
@@ -186,10 +186,11 @@ const WebcamMonitor = ({ allowCamera = true, allowMicrophone = false, onStatusCh
             let snapshot = null;
             
             if (allowCamera && videoRef.current && videoRef.current.videoWidth > 0) {
-                canvas.width = 160; // Reduced resolution for bandwidth
+                // Low quality video streaming resolution
+                canvas.width = 160; 
                 canvas.height = 120;
                 context.drawImage(videoRef.current, 0, 0, 160, 120);
-                snapshot = canvas.toDataURL('image/jpeg', 0.3); // Lower quality
+                snapshot = canvas.toDataURL('image/jpeg', 0.25); 
             }
             
             socketRef.current.emit('stream-update', {
@@ -198,9 +199,18 @@ const WebcamMonitor = ({ allowCamera = true, allowMicrophone = false, onStatusCh
                 snapshot,
                 micActivity: micLevel
             });
+        };
 
-            // Persist to DB if examResultId provided
-            if (examResultId && Date.now() % 30000 < 5000) {
+        const saveToDB = async () => {
+            const micLevel = allowMicrophone ? getMicLevel() : 0;
+            let snapshot = null;
+            if (allowCamera && videoRef.current && videoRef.current.videoWidth > 0) {
+                canvas.width = 240; 
+                canvas.height = 180;
+                context.drawImage(videoRef.current, 0, 0, 240, 180);
+                snapshot = canvas.toDataURL('image/jpeg', 0.4); 
+            }
+            if (examResultId) {
                 try {
                     await axios.patch(`${API_BASE}/api/results/${examResultId}/session`, {
                         snapshot, micActivity: micLevel
@@ -209,10 +219,14 @@ const WebcamMonitor = ({ allowCamera = true, allowMicrophone = false, onStatusCh
             }
         };
 
-        const captureInterval = setInterval(captureAndSend, 5000); // Send every 5 seconds
+        // Real-time streaming interval (approx 3.3 FPS for fluid low-res video)
+        const captureInterval = setInterval(captureAndSend, 300); 
+        // Database persist interval (every 30 seconds to prevent DB overload)
+        const dbInterval = setInterval(saveToDB, 30000);
         
         return () => {
             clearInterval(captureInterval);
+            clearInterval(dbInterval);
             if (audioContext) audioContext.close();
         };
     }, [allowCamera, allowMicrophone, examResultId, examId, userId]);

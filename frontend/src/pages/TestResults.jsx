@@ -9,6 +9,9 @@ import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import logoUniv from '../assets/LogoL.png';
+import logoMUSE from '../assets/muse_logo.png';
+import logoApex from '../assets/logo_transparent.png';
 
 const TestResults = () => {
     const [exams, setExams] = useState([]);
@@ -19,7 +22,9 @@ const TestResults = () => {
     const [isPlagiarismAnalyzing, setIsPlagiarismAnalyzing] = useState(false);
     const [plagiarismData, setPlagiarismData] = useState(null);
     const [showPlagiarismModal, setShowPlagiarismModal] = useState(false);
-    const API_BASE = `http://${window.location.hostname}:5000`;
+    const API_BASE = (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1'))
+    ? `http://${window.location.hostname}:5000`
+    : 'https://apex-s1q2.onrender.com';
 
     useEffect(() => {
         fetchExams();
@@ -74,7 +79,7 @@ const TestResults = () => {
         }
     };
 
-    const handleDownloadPDF = () => {
+    const handleDownloadPDF = async () => {
         try {
             if (!selectedExamId || results.length === 0) {
                 toast.error('No results available to download');
@@ -86,22 +91,35 @@ const TestResults = () => {
             const pageWidth = doc.internal.pageSize.getWidth();
             const pageHeight = doc.internal.pageSize.getHeight();
 
-            // Helper to get image as Base64 (internal assets)
-            const getLogo = (name) => {
-                const img = new Image();
-                img.src = `/src/assets/${name}`;
-                return img;
+                        // Helper to load image as a Promise
+            const loadImg = (src) => {
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => resolve(img);
+                    img.onerror = () => resolve(null);
+                    img.src = src;
+                });
             };
 
-            const logoMUSE = getLogo('muse_logo.png');
-            const logoUniv = getLogo('LogoL.png');
-            const logoApex = getLogo('logo_transparent.png');
+            // Preload all logos
+            const [logoMUSEImg, logoUnivImg, logoApexImg] = await Promise.all([
+                loadImg(logoMUSE),
+                loadImg(logoUniv),
+                loadImg(logoApex)
+            ]);
 
             // --- 1. Institutional Header ---
             // Left Logo (University of Mysore)
-            try {
-                doc.addImage(logoUniv, 'PNG', 15, 10, 20, 20);
-            } catch (e) {
+            if (logoUnivImg) {
+                try {
+                    doc.addImage(logoUnivImg, 'PNG', 15, 10, 20, 20);
+                } catch (e) {
+                    doc.setDrawColor(200, 200, 200);
+                    doc.rect(15, 10, 20, 20);
+                    doc.setFontSize(6);
+                    doc.text("UNIVERSITY", 25, 20, { align: 'center' });
+                }
+            } else {
                 doc.setDrawColor(200, 200, 200);
                 doc.rect(15, 10, 20, 20);
                 doc.setFontSize(6);
@@ -118,10 +136,16 @@ const TestResults = () => {
             doc.setFont('helvetica', 'normal');
             doc.text("Manasagangotri Campus, Mysuru (Approved by AICTE, New Delhi)", pageWidth / 2, 21, { align: 'center' });
 
-            // Right Logo (Department/APEX) - Using MUSE Logo
-            try {
-                doc.addImage(logoMUSE, 'PNG', pageWidth - 35, 10, 20, 20);
-            } catch (e) {
+                        // Right Logo (Department/APEX) - Using MUSE Logo
+            if (logoMUSEImg) {
+                try {
+                    doc.addImage(logoMUSEImg, 'PNG', pageWidth - 35, 10, 20, 20);
+                } catch (e) {
+                    doc.rect(pageWidth - 35, 10, 20, 20);
+                    doc.setFontSize(6);
+                    doc.text("MUSE", pageWidth - 25, 20, { align: 'center' });
+                }
+            } else {
                 doc.rect(pageWidth - 35, 10, 20, 20);
                 doc.setFontSize(6);
                 doc.text("MUSE", pageWidth - 25, 20, { align: 'center' });
@@ -142,10 +166,15 @@ const TestResults = () => {
             const startX = (pageWidth - totalWidth) / 2;
 
             doc.text("APEX", startX, 48);
-            try {
-                // Centering the zoomed logo vertically relative to text
-                doc.addImage(logoApex, 'PNG', startX + apexWidth + spacing, 30, logoW, logoH);
-            } catch (e) {
+                        if (logoApexImg) {
+                try {
+                    // Centering the zoomed logo vertically relative to text
+                    doc.addImage(logoApexImg, 'PNG', startX + apexWidth + spacing, 30, logoW, logoH);
+                } catch (e) {
+                    doc.setDrawColor(218, 165, 32);
+                    doc.rect(startX + apexWidth + spacing, 30, logoW, logoH);
+                }
+            } else {
                 doc.setDrawColor(218, 165, 32);
                 doc.rect(startX + apexWidth + spacing, 30, logoW, logoH);
             }
@@ -500,7 +529,7 @@ const TestResults = () => {
                                 exit={{ opacity: 0, scale: 0.95 }}
                                 className="fixed inset-0 z-[101] flex items-center justify-center p-4 sm:p-8"
                             >
-                                <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col">
+                                <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 max-w-5xl md:max-w-6xl w-full max-h-[95vh] overflow-hidden flex flex-col">
                                     {/* Modal Header */}
                                     <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-8 flex items-center justify-between shadow-lg relative z-10">
                                         <div>
@@ -637,7 +666,7 @@ const TestResults = () => {
                                 exit={{ opacity: 0, y: 50 }}
                                 className="fixed inset-0 z-[201] flex items-center justify-center p-4"
                             >
-                                <div className="bg-white rounded-[2rem] sm:rounded-[3rem] shadow-2xl border border-slate-100 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                                <div className="bg-white rounded-[2rem] sm:rounded-[3rem] shadow-2xl border border-slate-100 max-w-5xl md:max-w-6xl w-full max-h-[95vh] overflow-hidden flex flex-col">
                                     <div className="p-6 sm:p-8 bg-rose-600 text-white flex items-center justify-between">
                                         <div className="flex items-center gap-4">
                                             <div className="p-2 sm:p-3 bg-white/20 rounded-xl sm:rounded-2xl shrink-0">

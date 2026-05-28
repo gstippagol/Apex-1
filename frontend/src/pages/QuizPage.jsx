@@ -2,21 +2,24 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { ShieldAlert, Maximize2, Monitor, Rocket, Camera, Mic, CameraOff, MicOff, AlertCircle } from 'lucide-react';
+import { ShieldAlert, Maximize2, Monitor, Rocket, Camera, Mic, CameraOff, MicOff, AlertCircle, Shield, Lock, Video } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { io } from 'socket.io-client';
 
 // Components
 import Timer from '../components/exam/Timer';
 import QuestionCard from '../components/exam/QuestionCard';
 import SubmitConfirmation from '../components/exam/SubmitConfirmation';
 import WebcamMonitor from '../components/exam/WebcamMonitor';
+import LoadingScreen from '../components/LoadingScreen';
 
 const QuizPage = () => {
-    const { id } = useParams();
+        const { id } = useParams();
     const navigate = useNavigate();
-    const API_BASE = (window.location.hostname.includes('loca.lt') || window.location.hostname.includes('trycloudflare.com'))
-        ? 'https://green-ears-first-donated.trycloudflare.com'
-        : `http://${window.location.hostname}:5000`;
+    const hasSubmittedRef = useRef(false);
+    const API_BASE = (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1'))
+    ? `http://${window.location.hostname}:5000`
+    : 'https://apex-s1q2.onrender.com';
 
     const VIOLATION_LIMIT = 3;
 
@@ -39,7 +42,8 @@ const QuizPage = () => {
     const [fullscreenExits, setFullscreenExits] = useState(0);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [mediaStatus, setMediaStatus] = useState('pending'); // pending, granted, denied
-    const [showPermissionGate, setShowPermissionGate] = useState(true);
+    const [hasAcceptedProtocols, setHasAcceptedProtocols] = useState(false);
+    const [isChecked, setIsChecked] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
 
     useEffect(() => {
@@ -65,7 +69,9 @@ const QuizPage = () => {
         );
     }
 
-    const submitQuiz = useCallback(async () => {
+        const submitQuiz = useCallback(async (isAutoSubmit = false) => {
+        if (hasSubmittedRef.current) return;
+        hasSubmittedRef.current = true;
         if (isSubmitting) return;
         setIsSubmitting(true);
         try {
@@ -114,7 +120,8 @@ const QuizPage = () => {
                 totalMarks,
                 totalQuestions,
                 timeTaken: quiz.duration - timeLeft,
-                violations: { tabSwitches, fullscreenExits }
+                violations: { tabSwitches, fullscreenExits },
+                submissionType: isAutoSubmit ? 'Auto' : 'Normal'
             });
 
             if (res.data.success) {
@@ -122,9 +129,17 @@ const QuizPage = () => {
                 toast.success('Quiz submitted successfully!');
             }
         } catch (err) {
-            toast.error(err.response?.data?.message || 'Submission failed');
+            const errorMsg = err.response?.data?.message || 'Submission failed';
+            toast.error(errorMsg);
+            
+            if (errorMsg === 'You have already submitted this assessment.') {
+                navigate('/student');
+            } else {
+                hasSubmittedRef.current = false;
+                setIsSubmitting(false);
+            }
         }
-    }, [answers, id, quiz, timeLeft, API_BASE, tabSwitches, fullscreenExits]);
+    }, [answers, id, quiz, timeLeft, API_BASE, tabSwitches, fullscreenExits, navigate]);
 
     const handleJump = (idx) => {
         if (!quiz?.questions?.[idx]) return;
@@ -158,6 +173,45 @@ const QuizPage = () => {
         }
     };
 
+    // Socket Connection
+    const [socket, setSocket] = useState(null);
+    useEffect(() => {
+        const saved = localStorage.getItem('user');
+        if (!saved) return;
+        const user = JSON.parse(saved);
+
+        const socketUrl = (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1'))
+            ? `http://${window.location.hostname}:5000`
+            : 'https://apex-s1q2.onrender.com';
+
+        const s = io(socketUrl, {
+            reconnectionAttempts: 5,
+            reconnectionDelay: 5000,
+        });
+        setSocket(s);
+
+        s.on('connect', () => {
+            console.log("Quiz Session Socket Connected");
+            s.emit('join-exam', { examId: id, userId: user.id || user._id, role: 'student' });
+        });
+
+        s.on('admin-message', (data) => {
+            toast(data.message, {
+                duration: 5000,
+                position: 'top-right',
+                icon: '💬',
+                style: {
+                    background: '#1e293b',
+                    color: '#fff',
+                    border: '1px solid #3b82f6',
+                    fontWeight: 'bold'
+                }
+            });
+        });
+
+        return () => s.disconnect();
+    }, [id]);
+
     // Initial Fetch
     useEffect(() => {
         const fetchQuiz = async () => {
@@ -165,7 +219,12 @@ const QuizPage = () => {
                 // Check if already submitted
                 const resultCheck = await axios.get(`${API_BASE}/api/quiz/results?quizId=${id}`);
                 if (resultCheck.data.data && resultCheck.data.data.length > 0) {
-                    toast.error('You have already submitted this quiz.');
+                    if (localStorage.getItem(`quiz_auto_submitted_${id}`)) {
+                        toast.error('Refreshing detected. Auto-submitting assessment.', { id: 'quiz-auto-submitted', duration: 6000 });
+                        localStorage.removeItem(`quiz_auto_submitted_${id}`);
+                    } else {
+                        toast.error('You have already submitted this assessment.', { id: 'quiz-already-submitted' });
+                    }
                     navigate('/student');
                     return;
                 }
@@ -193,15 +252,15 @@ const QuizPage = () => {
 
     // Timer logic
     useEffect(() => {
-        if (loading || !quiz || timeLeft <= 0 || showPermissionGate) return;
+        if (loading || !quiz || timeLeft <= 0 || !isFullscreen || !hasAcceptedProtocols) return;
         const timer = setInterval(() => {
             setTimeLeft(prev => {
-                if (prev <= 1) { clearInterval(timer); submitQuiz(); return 0; }
+                if (prev <= 1) { clearInterval(timer); submitQuiz(true); return 0; }
                 return prev - 1;
             });
         }, 1000);
         return () => clearInterval(timer);
-    }, [loading, quiz, timeLeft, submitQuiz, showPermissionGate]);
+    }, [loading, quiz, timeLeft, submitQuiz, isFullscreen, hasAcceptedProtocols]);
 
     // Always track fullscreen state
     useEffect(() => {
@@ -214,7 +273,7 @@ const QuizPage = () => {
 
     // Restriction Protocols (Tab Switch, Fullscreen, etc.)
     useEffect(() => {
-        if (loading || !quiz || showPermissionGate || quizResult || isSubmitting) return;
+        if (loading || !quiz || !isFullscreen || !hasAcceptedProtocols || quizResult || isSubmitting) return;
         const isStrict = quiz.isRestricted;
         const isFSOnly = quiz.fullscreenOnly;
 
@@ -241,40 +300,7 @@ const QuizPage = () => {
             }
         };
 
-        const handlePopState = () => {
-            if (isStrict || isFSOnly) {
-                window.history.pushState(null, null, window.location.pathname);
-                
-                if (isStrict) {
-                    setTabSwitches(s => s + 1);
-                    toast.error('CRITICAL VIOLATION: BACK BUTTON DETECTED! Session terminated.', {
-                        duration: 5000,
-                        style: { background: '#991b1b', color: '#fff', fontWeight: 'bold' }
-                    });
-                    setTimeout(() => {
-                        submitQuiz();
-                    }, 1500);
-                } else {
-                    setBackButtonHits(prev => {
-                        const next = prev + 1;
-                        if (next >= 3) {
-                            toast.error('MAXIMUM ATTEMPTS REACHED! Session terminated.', {
-                                duration: 5000,
-                                style: { background: '#000', color: '#fff', border: '2px solid #ef4444', fontWeight: '900' }
-                            });
-                            setTimeout(() => submitQuiz(), 1000);
-                        } else {
-                            toast.error(`SECURITY ALERT [${next}/3]: Back button is restricted. Please re-enter fullscreen.`, {
-                                duration: 5000,
-                                style: { background: '#7c2d12', color: '#fff', fontWeight: 'bold' }
-                            });
-                            setIsFullscreen(false); // Force re-entry
-                        }
-                        return next;
-                    });
-                }
-            }
-        };
+        
 
         const handleKeyDown = (e) => {
             if (quiz.isRestricted) {
@@ -323,15 +349,13 @@ const QuizPage = () => {
             document.addEventListener('selectstart', prevent);
         }
 
-        if (isStrict || isFSOnly) {
-            window.history.pushState(null, null, window.location.pathname);
-            window.addEventListener('popstate', handlePopState);
+                if (isStrict || isFSOnly) {
             document.addEventListener('fullscreenchange', handleFullscreenViolation);
         }
 
         return () => {
             document.removeEventListener('visibilitychange', handleVisibility);
-            window.removeEventListener('popstate', handlePopState);
+            
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
             document.removeEventListener('fullscreenchange', handleFullscreenViolation);
@@ -340,7 +364,208 @@ const QuizPage = () => {
             document.removeEventListener('paste', prevent);
             document.removeEventListener('selectstart', prevent);
         };
-    }, [loading, quiz, showPermissionGate, tabSwitches, fullscreenExits, submitQuiz]);
+    }, [loading, quiz, isFullscreen, hasAcceptedProtocols, tabSwitches, fullscreenExits, submitQuiz, quizResult, isSubmitting]);
+
+    // Refs to store the latest values for unmount/exit submission to avoid useEffect dependency triggers
+    const answersRef = useRef(answers);
+    const quizRef = useRef(quiz);
+    const tabSwitchesRef = useRef(tabSwitches);
+    const fullscreenExitsRef = useRef(fullscreenExits);
+    const timeLeftRef = useRef(timeLeft);
+    const hasEnteredFullscreenRef = useRef(false);
+    useEffect(() => {
+        if (isFullscreen) {
+            hasEnteredFullscreenRef.current = true;
+        }
+    }, [isFullscreen]);
+
+    const submitQuizRef = useRef(submitQuiz);
+    useEffect(() => { submitQuizRef.current = submitQuiz; }, [submitQuiz]);
+    useEffect(() => { answersRef.current = answers; }, [answers]);
+    useEffect(() => { quizRef.current = quiz; }, [quiz]);
+    useEffect(() => { tabSwitchesRef.current = tabSwitches; }, [tabSwitches]);
+    useEffect(() => { fullscreenExitsRef.current = fullscreenExits; }, [fullscreenExits]);
+    useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
+
+    // Component Unmount (True Client-Side Page Leaves) for Quiz
+    useEffect(() => {
+        const getPayload = () => {
+            const currentQuiz = quizRef.current;
+            if (!currentQuiz) return null;
+
+            const formattedAnswers = currentQuiz.questions.map(q => {
+                const ans = answersRef.current[q._id];
+                if (!ans) return null;
+
+                let isCorrect = false;
+                if (q.type === 'Coding') {
+                    if (ans.codingResults) {
+                        isCorrect = ans.codingResults.testCasesPassed === ans.codingResults.totalTestCases;
+                    }
+                } else {
+                    isCorrect = ans === q.correctAnswer;
+                }
+
+                return typeof ans === 'object'
+                    ? { questionId: q._id, ...ans, isCorrect }
+                    : { questionId: q._id, selectedOption: ans, isCorrect };
+            }).filter(a => a !== null);
+
+            const totalMarks = currentQuiz.questions.reduce((acc, q) => acc + (q.marks || 1), 0);
+            const totalQuestions = currentQuiz.questions.length;
+            
+            let score = 0;
+            currentQuiz.questions.forEach(q => {
+                const ans = answersRef.current[q._id];
+                if (ans) {
+                    if (q.type === 'Coding') {
+                        if (ans.codingResults) {
+                            const ratio = ans.codingResults.testCasesPassed / ans.codingResults.totalTestCases;
+                            score += (q.marks || 1) * (ratio || 0);
+                        }
+                    } else {
+                        if (ans === q.correctAnswer) {
+                            score += (q.marks || 1);
+                        }
+                    }
+                }
+            });
+
+            return {
+                quizId: id,
+                answers: formattedAnswers,
+                score,
+                totalMarks,
+                totalQuestions,
+                timeTaken: currentQuiz.duration - timeLeftRef.current,
+                violations: { tabSwitches: tabSwitchesRef.current, fullscreenExits: fullscreenExitsRef.current }
+            };
+        };
+
+        return () => {
+            if (!hasSubmittedRef.current && hasEnteredFullscreenRef.current) {
+                const payload = getPayload();
+                if (!payload) return;
+                hasSubmittedRef.current = true;
+                fetch(`${API_BASE}/api/quiz/submit`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify(payload),
+                    keepalive: true
+                });
+            }
+        };
+    }, [id, API_BASE]);
+
+    // Active Proctoring Navigation & Unload Lock Listeners for Quiz
+    useEffect(() => {
+        if (loading || !quiz || !hasAcceptedProtocols || quizResult || isSubmitting) return;
+
+        window.history.pushState(null, null, window.location.pathname);
+
+        const handlePopState = () => {
+            window.history.pushState(null, null, window.location.pathname);
+            toast.error('BACK BUTTON DETECTED! Security protocol activated. Auto-submitting quiz for security integrity...', {
+                duration: 5000,
+                style: { background: '#991b1b', color: '#fff', fontWeight: 'bold' }
+            });
+            setTimeout(() => {
+                submitQuizRef.current(true);
+            }, 1000);
+        };
+
+        const handleBeforeUnload = (e) => {
+            const msg = "Are you sure you want to exit? Your quiz session will be terminated and auto-submitted.";
+            e.preventDefault();
+            e.returnValue = msg;
+            return msg;
+        };
+
+        const getPayload = () => {
+            const currentQuiz = quizRef.current;
+            if (!currentQuiz) return null;
+
+            const formattedAnswers = currentQuiz.questions.map(q => {
+                const ans = answersRef.current[q._id];
+                if (!ans) return null;
+
+                let isCorrect = false;
+                if (q.type === 'Coding') {
+                    if (ans.codingResults) {
+                        isCorrect = ans.codingResults.testCasesPassed === ans.codingResults.totalTestCases;
+                    }
+                } else {
+                    isCorrect = ans === q.correctAnswer;
+                }
+
+                return typeof ans === 'object'
+                    ? { questionId: q._id, ...ans, isCorrect }
+                    : { questionId: q._id, selectedOption: ans, isCorrect };
+            }).filter(a => a !== null);
+
+            const totalMarks = currentQuiz.questions.reduce((acc, q) => acc + (q.marks || 1), 0);
+            const totalQuestions = currentQuiz.questions.length;
+            
+            let score = 0;
+            currentQuiz.questions.forEach(q => {
+                const ans = answersRef.current[q._id];
+                if (ans) {
+                    if (q.type === 'Coding') {
+                        if (ans.codingResults) {
+                            const ratio = ans.codingResults.testCasesPassed / ans.codingResults.totalTestCases;
+                            score += (q.marks || 1) * (ratio || 0);
+                        }
+                    } else {
+                        if (ans === q.correctAnswer) {
+                            score += (q.marks || 1);
+                        }
+                    }
+                }
+            });
+
+            return {
+                quizId: id,
+                answers: formattedAnswers,
+                score,
+                totalMarks,
+                totalQuestions,
+                timeTaken: currentQuiz.duration - timeLeftRef.current,
+                violations: { tabSwitches: tabSwitchesRef.current, fullscreenExits: fullscreenExitsRef.current },
+                submissionType: 'Auto'
+            };
+        };
+
+        const handleUnload = () => {
+            if (!hasSubmittedRef.current && hasEnteredFullscreenRef.current) {
+                const payload = getPayload();
+                if (!payload) return;
+                hasSubmittedRef.current = true;
+                fetch(`${API_BASE}/api/quiz/submit`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify(payload),
+                    keepalive: true
+                });
+                localStorage.setItem(`quiz_auto_submitted_${id}`, 'true');
+            }
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        window.addEventListener('unload', handleUnload);
+
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            window.removeEventListener('unload', handleUnload);
+        };
+    }, [id, API_BASE, loading, quiz, hasAcceptedProtocols, quizResult, isSubmitting]);
 
     // Violation Limit Enforcement
     useEffect(() => {
@@ -354,7 +579,7 @@ const QuizPage = () => {
                 style: { background: '#000', color: '#fff', border: '3px solid #ef4444', fontWeight: '900' }
             });
             setTimeout(() => {
-                submitQuiz();
+                submitQuiz(true);
             }, 1500);
         }
     }, [tabSwitches, fullscreenExits, quiz, submitQuiz]);
@@ -378,9 +603,7 @@ const QuizPage = () => {
     );
 
     if (loading) return (
-        <div className="min-h-screen flex items-center justify-center bg-[#0f0f1a] text-blue-400 font-bold text-lg">
-            Synchronizing Quiz Terminal...
-        </div>
+        <LoadingScreen message="Synchronizing Quiz Terminal..." dark={true} fullScreen={true} />
     );
 
     const currentQuestion = quiz.questions?.[currentIdx] || null;
@@ -412,53 +635,209 @@ const QuizPage = () => {
         </aside>
     );
 
-    if (showPermissionGate) {
+    if (!hasAcceptedProtocols) {
         return (
-            <div className="min-h-screen bg-[#0f0f1a] flex flex-col items-center justify-center p-4 sm:p-8 text-center font-sans overflow-y-auto">
-                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-[#13131f] p-8 sm:p-12 rounded-[2rem] sm:rounded-[3.5rem] border border-white/10 shadow-2xl max-w-2xl w-full my-auto">
-                    <div className="w-24 h-24 bg-blue-600/10 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-8">
-                        <Rocket size={48} />
-                    </div>
-                    <h2 className="text-4xl font-black text-white mb-4 tracking-tight uppercase">Protocol Initialization</h2>
-                    <p className="text-slate-400 font-bold mb-10 text-lg">This session requires administrative verification and environment locking.</p>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
-                        <div className={`p-6 rounded-3xl border transition-all ${quiz?.proctoring?.camera ? 'bg-white/5 border-white/10' : 'bg-white/2 border-white/5 opacity-50'}`}>
-                            <Camera className={`mx-auto mb-3 ${quiz?.proctoring?.camera ? 'text-blue-500' : 'text-slate-600'}`} />
-                            <p className="text-[10px] font-black uppercase tracking-widest text-white">Camera</p>
-                            <p className="text-[8px] font-bold text-slate-500 uppercase mt-1">{quiz?.proctoring?.camera ? 'Required' : 'Not Required'}</p>
+            <div style={{
+                position: 'fixed', inset: 0, background: '#0f0f1a',
+                zIndex: 101, display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', padding: '24px',
+                overflowY: 'auto'
+            }}>
+                <div style={{
+                    background: '#131325',
+                    border: '1px solid rgba(96,165,250,0.15)',
+                    borderRadius: '2rem',
+                    padding: '2.5rem',
+                    maxWidth: '650px',
+                    width: '100%',
+                    boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '24px'
+                }}>
+                    {/* Header Lock Badge */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', textAlign: 'center' }}>
+                        <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(96,165,250,0.1)', display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center', border: '1px solid rgba(96,165,250,0.2)' }}>
+                            <Shield size={32} style={{ color: '#60a5fa' }} />
                         </div>
-                        <div className={`p-6 rounded-3xl border transition-all ${quiz?.proctoring?.microphone ? 'bg-white/5 border-white/10' : 'bg-white/2 border-white/5 opacity-50'}`}>
-                            <Mic className={`mx-auto mb-3 ${quiz?.proctoring?.microphone ? 'text-blue-500' : 'text-slate-600'}`} />
-                            <p className="text-[10px] font-black uppercase tracking-widest text-white">Microphone</p>
-                            <p className="text-[8px] font-bold text-slate-500 uppercase mt-1">{quiz?.proctoring?.microphone ? 'Required' : 'Not Required'}</p>
-                        </div>
+                        <h2 style={{ color: '#fff', fontSize: '24px', fontWeight: '900', letterSpacing: '-0.02em', textTransform: 'uppercase', margin: 0 }}>Assessment Protocols</h2>
+                        <p style={{ color: '#64748b', fontSize: '9px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0 }}>APEX SECURE ASSESSMENT TERMINAL</p>
                     </div>
 
-                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-3xl p-6 mb-10 text-left">
-                        <div className="flex items-start gap-4">
-                            <ShieldAlert className="text-amber-500 shrink-0" size={24} />
+                    {/* Rules List Container */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', background: 'rgba(255,255,255,0.02)', borderRadius: '1.5rem', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.04)' }}>
+                        
+                        {/* Strict Tab Detention */}
+                        {quiz?.isRestricted && (
+                            <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+                                <div style={{ color: '#f59e0b', marginTop: '2px', flexShrink: 0 }}><ShieldAlert size={16} /></div>
+                                <div>
+                                    <h4 style={{ color: '#fff', fontSize: '13px', fontWeight: '800', margin: '0 0 2px 0' }}>Strict Tab Detention</h4>
+                                    <p style={{ color: '#94a3b8', fontSize: '11px', fontWeight: '500', lineHeight: '1.4', margin: 0 }}>Leaving this browser window, switching tabs, or clicking outside will immediately log a secure protocol violation.</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Screen Capture Blocking */}
+                        {quiz?.isRestricted && (
+                            <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+                                <div style={{ color: '#60a5fa', marginTop: '2px', flexShrink: 0 }}><Monitor size={16} /></div>
+                                <div>
+                                    <h4 style={{ color: '#fff', fontSize: '13px', fontWeight: '800', margin: '0 0 2px 0' }}>Screen Capture Blocking</h4>
+                                    <p style={{ color: '#94a3b8', fontSize: '11px', fontWeight: '500', lineHeight: '1.4', margin: 0 }}>PrintScreen keys, Win+Shift+S snipping tools, and record utilities are strictly disabled. Any capture attempt records a violation.</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Fullscreen Immersive Mode */}
+                        {quiz?.fullscreenOnly && !quiz?.isRestricted && (
+                            <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+                                <div style={{ color: '#60a5fa', marginTop: '2px', flexShrink: 0 }}><Maximize2 size={16} /></div>
+                                <div>
+                                    <h4 style={{ color: '#fff', fontSize: '13px', fontWeight: '800', margin: '0 0 2px 0' }}>Fullscreen Immersive Mode</h4>
+                                    <p style={{ color: '#94a3b8', fontSize: '11px', fontWeight: '500', lineHeight: '1.4', margin: 0 }}>This assessment requires fullscreen mode to remain active throughout the session to prevent distractions.</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Webcam Monitoring */}
+                        {quiz?.proctoring?.camera && (
+                            <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+                                <div style={{ color: '#ef4444', marginTop: '2px', flexShrink: 0 }}><Video size={16} /></div>
+                                <div>
+                                    <h4 style={{ color: '#fff', fontSize: '13px', fontWeight: '800', margin: '0 0 2px 0' }}>Webcam Monitoring</h4>
+                                    <p style={{ color: '#94a3b8', fontSize: '11px', fontWeight: '500', lineHeight: '1.4', margin: 0 }}>Continuous real-time proctoring tracks presence. Absence, secondary faces, or external lookaways will register flags.</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Audio Monitoring */}
+                        {quiz?.proctoring?.microphone && (
+                            <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+                                <div style={{ color: '#ec4899', marginTop: '2px', flexShrink: 0 }}><Mic size={16} /></div>
+                                <div>
+                                    <h4 style={{ color: '#fff', fontSize: '13px', fontWeight: '800', margin: '0 0 2px 0' }}>Audio Monitoring</h4>
+                                    <p style={{ color: '#94a3b8', fontSize: '11px', fontWeight: '500', lineHeight: '1.4', margin: 0 }}>Continuous real-time audio analysis tracks sound in your environment. Excessive speech or voice activity will register flags.</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Auto-Submission Action */}
+                        <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+                            <div style={{ color: '#818cf8', marginTop: '2px', flexShrink: 0 }}><Lock size={16} /></div>
                             <div>
-                                <h4 className="text-amber-500 font-black text-[10px] uppercase tracking-widest mb-1">Session Integrity Rules</h4>
-                                <p className="text-slate-400 text-[9px] font-bold uppercase leading-relaxed">
-                                    • {quiz.isRestricted ? 'Full protocol enforcement: No tab switching or browser exits allowed.' : 'Normal protocol: Fullscreen mode is required throughout the session.'}<br />
-                                    • Navigation is locked. Do not attempt to use the back button.<br />
-                                    • Ensure your environment is clear of any unauthorized aids.
+                                <h4 style={{ color: '#fff', fontSize: '13px', fontWeight: '800', margin: '0 0 2px 0' }}>Auto-Submission Action</h4>
+                                <p style={{ color: '#94a3b8', fontSize: '11px', fontWeight: '500', lineHeight: '1.4', margin: 0 }}>
+                                    {quiz?.isRestricted 
+                                        ? 'Reaching 3 total violations, attempting back button navigation, page refresh, or closing the tab triggers auto-submission.'
+                                        : 'Attempting back button navigation, page refresh, or closing the active assessment tab triggers auto-submission.'
+                                    }
                                 </p>
                             </div>
                         </div>
                     </div>
 
-                    <button 
-                        onClick={requestPermissions}
-                        className="w-full py-6 bg-blue-600 text-white font-black rounded-2xl uppercase tracking-[0.2em] text-xs hover:bg-blue-700 transition-all active:scale-95 shadow-xl shadow-blue-600/20"
-                    >
-                        Establish Secure Connection
-                    </button>
-                    {mediaStatus === 'denied' && (
-                        <p className="mt-6 text-rose-500 font-black text-[10px] uppercase animate-pulse">Permissions Refused. Access to protocol is locked.</p>
-                    )}
-                </motion.div>
+                    {/* Checkbox agreement */}
+                    <label style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', cursor: 'pointer', userSelect: 'none' }}>
+                        <input 
+                            type="checkbox" 
+                            checked={isChecked} 
+                            onChange={(e) => setIsChecked(e.target.checked)}
+                            style={{
+                                marginTop: '3px',
+                                width: '16px',
+                                height: '16px',
+                                accentColor: '#2563eb',
+                                cursor: 'pointer'
+                            }}
+                        />
+                        <span style={{ color: '#94a3b8', fontSize: '11px', fontWeight: '600', lineHeight: '1.4' }}>
+                            I agree to honor quiz integrity, confirm my testing environment is silent and compliant, and consent to dynamic webcam and activity proctoring.
+                        </span>
+                    </label>
+
+                    {/* Buttons */}
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                        <button
+                            onClick={() => navigate('/student')}
+                            style={{
+                                flex: 1,
+                                background: 'rgba(255,255,255,0.03)',
+                                border: '1px solid rgba(255,255,255,0.08)',
+                                color: '#94a3b8',
+                                padding: '14px 20px',
+                                borderRadius: '12px',
+                                fontWeight: '800',
+                                fontSize: '11px',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.05em',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                        >
+                            Cancel & Exit
+                        </button>
+                        <button
+                            disabled={!isChecked}
+                            onClick={() => setHasAcceptedProtocols(true)}
+                            style={{
+                                flex: 1,
+                                background: isChecked ? '#2563eb' : '#1e1b4b',
+                                border: 'none',
+                                color: isChecked ? '#fff' : '#475569',
+                                padding: '14px 20px',
+                                borderRadius: '12px',
+                                fontWeight: '800',
+                                fontSize: '11px',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.05em',
+                                cursor: isChecked ? 'pointer' : 'not-allowed',
+                                transition: 'all 0.15s',
+                                boxShadow: isChecked ? '0 4px 14px rgba(37,99,235,0.35)' : 'none'
+                            }}
+                            onMouseEnter={e => { if (isChecked) e.currentTarget.style.background = '#1d4ed8'; }}
+                            onMouseLeave={e => { if (isChecked) e.currentTarget.style.background = '#2563eb'; }}
+                        >
+                            Agree & Continue
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (hasAcceptedProtocols && !isFullscreen) {
+        return (
+            <div style={{
+                position: 'fixed', inset: 0, background: 'rgba(15,15,26,0.96)',
+                zIndex: 100, display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px',
+                overflowY: 'auto'
+            }}>
+                <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(96,165,250,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px' }}>
+                    <Maximize2 size={36} style={{ color: '#60a5fa' }} />
+                </div>
+                <h2 style={{ color: '#fff', fontSize: '28px', fontWeight: '800', marginBottom: '12px' }}>Fullscreen Required</h2>
+                <p style={{ color: '#64748b', maxWidth: '400px', marginBottom: '32px', lineHeight: 1.6 }}>
+                    This quiz requires fullscreen mode to ensure academic integrity.
+                </p>
+                <button
+                    onClick={enterFullscreen}
+                    style={{
+                        background: '#2563eb', color: '#fff',
+                        padding: '16px 40px', borderRadius: '14px',
+                        fontWeight: '900', fontSize: '11px', border: 'none',
+                        cursor: 'pointer', textTransform: 'uppercase',
+                        letterSpacing: '0.08em', boxShadow: '0 4px 14px rgba(37,99,235,0.35)',
+                        transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#1d4ed8'}
+                    onMouseLeave={e => e.currentTarget.style.background = '#2563eb'}
+                >
+                    Enter Fullscreen
+                </button>
             </div>
         );
     }
@@ -513,7 +892,7 @@ const QuizPage = () => {
                     <div className="px-4 py-1.5 bg-white/5 border border-white/10 rounded-full text-[11px] font-bold text-slate-400">
                         {stats.answered}<span className="text-slate-600">/{stats.total}</span> Answered
                     </div>
-                    <Timer timeLeft={timeLeft} />
+                    <Timer timeLeft={timeLeft} onWarning={() => toast('Final 5 minutes!', { icon: '⏰' })} />
                     <button
                         onClick={() => setShowSubmitModal(true)}
                         className="px-6 py-2 bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20"
@@ -554,7 +933,7 @@ const QuizPage = () => {
             </main>
 
             {/* Fullscreen Gate */}
-            {!isFullscreen && !showPermissionGate && (quiz?.isRestricted || quiz?.fullscreenOnly) && (
+            {!isFullscreen && hasAcceptedProtocols && (quiz?.isRestricted || quiz?.fullscreenOnly) && (
                 <div className="fixed inset-0 bg-[#0f0f1a]/95 z-[100] flex flex-col items-center justify-center p-8 text-center">
                     <div className="w-20 h-20 bg-blue-600/10 text-blue-500 rounded-full flex items-center justify-center mb-6">
                         <Maximize2 size={40} />
@@ -566,6 +945,44 @@ const QuizPage = () => {
                         className="px-10 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl active:scale-95 transition-all"
                     >
                         Restore Session
+                    </button>
+                </div>
+            )}
+
+            {/* ── MEDIA ACCESS GATE ── */}
+            {(mediaStatus === 'denied' || mediaStatus === 'not-found') && (
+                <div style={{
+                    position: 'fixed', inset: 0, background: 'rgba(15,15,26,0.98)',
+                    zIndex: 200, display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px',
+                }}>
+                    <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
+                        {quiz?.proctoring?.camera && <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(239,68,68,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CameraOff size={32} style={{ color: '#ef4444' }} /></div>}
+                        {quiz?.proctoring?.microphone && <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(239,68,68,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><MicOff size={32} style={{ color: '#ef4444' }} /></div>}
+                    </div>
+                    <h2 style={{ color: '#fff', fontSize: '28px', fontWeight: '800', marginBottom: '12px' }}>
+                        {mediaStatus === 'not-found' ? 'Hardware Not Detected' : 'Access Denied'}
+                    </h2>
+                    <p style={{ color: '#64748b', maxWidth: '450px', marginBottom: '32px', lineHeight: 1.6 }}>
+                        {mediaStatus === 'not-found'
+                            ? `We couldn't detect a required ${quiz?.proctoring?.camera ? 'camera' : ''} ${quiz?.proctoring?.camera && quiz?.proctoring?.microphone ? 'or' : ''} ${quiz?.proctoring?.microphone ? 'microphone' : ''}. Please plug in the necessary hardware and refresh.`
+                            : `You have blocked camera/microphone access. This quiz cannot be taken without active monitoring. Please enable permissions in your browser settings and refresh.`
+                        }
+                    </p>
+                    <button
+                        onClick={() => window.location.reload()}
+                        style={{
+                            background: '#2563eb', color: '#fff',
+                            padding: '16px 40px', borderRadius: '14px',
+                            fontWeight: '900', fontSize: '11px', border: 'none',
+                            cursor: 'pointer', textTransform: 'uppercase',
+                            letterSpacing: '0.08em', boxShadow: '0 4px 14px rgba(37,99,235,0.35)',
+                            transition: 'all 0.15s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = '#1d4ed8'}
+                        onMouseLeave={e => e.currentTarget.style.background = '#2563eb'}
+                    >
+                        Refresh & Try Again
                     </button>
                 </div>
             )}

@@ -3,13 +3,44 @@ import axios from 'axios';
 import { Plus, Search, Rocket, Trash2, Edit2, Play, Power, Calendar, Clock, CheckSquare, ShieldOff, Camera, Mic, Shield, Maximize2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import ConfirmModal from '../ConfirmModal';
 
 const QuizzesTab = () => {
     const navigate = useNavigate();
     const [quizzes, setQuizzes] = useState([]);
     const [loading, setLoading] = useState(true);
+
+    const getLocalISO = (date) => {
+        const offset = date.getTimezoneOffset();
+        const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+        return localDate.toISOString();
+    };
+    const minDate = getLocalISO(new Date()).split('T')[0];
     const [searchTerm, setSearchTerm] = useState('');
     const [showLaunchModal, setShowLaunchModal] = useState(false);
+
+    const [confirmModal, setConfirmModal] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: null,
+        confirmText: 'Confirm',
+        type: 'danger'
+    });
+
+    const triggerConfirm = ({ title, message, onConfirm, confirmText = 'Confirm', type = 'danger' }) => {
+        setConfirmModal({
+            isOpen: true,
+            title,
+            message,
+            onConfirm: () => {
+                onConfirm();
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+            },
+            confirmText,
+            type
+        });
+    };
     const [launchForm, setLaunchForm] = useState({
         title: '',
         duration: 30, // minutes
@@ -19,9 +50,9 @@ const QuizzesTab = () => {
         proctoring: { camera: false, microphone: false }
     });
 
-    const API_BASE = (window.location.hostname.includes('loca.lt') || window.location.hostname.includes('trycloudflare.com'))
-        ? 'https://green-ears-first-donated.trycloudflare.com'
-        : `http://${window.location.hostname}:5000`;
+    const API_BASE = (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1'))
+    ? `http://${window.location.hostname}:5000`
+    : 'https://apex-s1q2.onrender.com';
 
     useEffect(() => {
         fetchQuizzes();
@@ -54,15 +85,21 @@ const QuizzesTab = () => {
         }
     };
 
-    const handleDeleteQuiz = async (id) => {
-        if (!window.confirm('Delete this quiz protocol?')) return;
-        try {
-            await axios.delete(`${API_BASE}/api/quiz/${id}`);
-            toast.success('Protocol Terminated');
-            fetchQuizzes();
-        } catch (err) {
-            toast.error('Deletion failed');
-        }
+    const handleDeleteQuiz = async (id, quizTitle = 'this quiz') => {
+        triggerConfirm({
+            title: 'Delete Quiz Protocol',
+            message: `Are you sure you want to delete "${quizTitle}"? This will permanently delete the quiz and all associated questions.`,
+            confirmText: 'Delete Quiz',
+            onConfirm: async () => {
+                try {
+                    await axios.delete(`${API_BASE}/api/quiz/${id}`);
+                    toast.success('Protocol Terminated');
+                    fetchQuizzes();
+                } catch (err) {
+                    toast.error('Deletion failed');
+                }
+            }
+        });
     };
 
     const handleStopQuiz = async (id) => {
@@ -145,7 +182,7 @@ const QuizzesTab = () => {
                                 >
                                     <Edit2 size={16}/>
                                 </button>
-                                <button onClick={() => handleDeleteQuiz(quiz._id)} className="p-3 bg-white border border-slate-100 rounded-xl text-rose-500 hover:shadow-lg transition-all" title="Delete Quiz"><Trash2 size={16}/></button>
+                                <button onClick={() => handleDeleteQuiz(quiz._id, quiz.title)} className="p-3 bg-white border border-slate-100 rounded-xl text-rose-500 hover:shadow-lg transition-all" title="Delete Quiz"><Trash2 size={16}/></button>
                             </div>
                             
                             <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 border border-slate-100 group-hover:bg-blue-50 group-hover:border-blue-100 transition-all">
@@ -242,9 +279,10 @@ const QuizzesTab = () => {
                                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Scheduling Date</label>
                                     <input 
                                         type="date" 
+                                        min={minDate}
                                         value={launchForm.scheduledDate} 
                                         onChange={e => setLaunchForm({...launchForm, scheduledDate: e.target.value})}
-                                        className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none"
+                                        className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:ring-4 focus:ring-blue-500/10"
                                     />
                                 </div>
                             </div>
@@ -306,6 +344,16 @@ const QuizzesTab = () => {
                     </div>
                 </div>
             )}
+            {/* Premium Custom Confirmation Overlay */}
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                onConfirm={confirmModal.onConfirm}
+                onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                confirmText={confirmModal.confirmText}
+                type={confirmModal.type}
+            />
         </div>
     );
 };

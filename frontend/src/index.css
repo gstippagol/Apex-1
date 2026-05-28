@@ -110,6 +110,19 @@ h6 {
   background: rgba(0, 0, 0, 0.2);
 }
 
+/* Sidebar stability styling to prevent jitter, layout shifting and scrollbar shifts */
+.sidebar-stable {
+  width: 16rem !important;
+  min-width: 16rem !important;
+  max-width: 16rem !important;
+  overflow-x: hidden !important;
+  scrollbar-gutter: stable !important;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0); /* GPU acceleration */
+  will-change: transform;
+}
+
 /* Exam Timer Animation */
 @keyframes pulse-red {
   0% {

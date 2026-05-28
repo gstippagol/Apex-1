@@ -13,17 +13,44 @@ import { Download } from 'lucide-react';
 import logo from '../../assets/logo_transparent.png';
 import museLogo from '../../assets/muse_logo.png';
 import rightShield from '../../assets/LogoL.png';
+import ConfirmModal from '../ConfirmModal';
+import LoadingScreen from '../LoadingScreen';
 
 const QuizMonitoringTab = () => {
     const [quizzes, setQuizzes] = useState([]);
+
+    const [confirmModal, setConfirmModal] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: null,
+        confirmText: 'Confirm',
+        type: 'danger'
+    });
+
+    const triggerConfirm = ({ title, message, onConfirm, confirmText = 'Confirm', type = 'danger' }) => {
+        setConfirmModal({
+            isOpen: true,
+            title,
+            message,
+            onConfirm: () => {
+                onConfirm();
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+            },
+            confirmText,
+            type
+        });
+    };
+
     const [selectedQuizId, setSelectedQuizId] = useState('');
     const [submissions, setSubmissions] = useState([]);
     const [loading, setLoading] = useState(false);
     const [viewingResult, setViewingResult] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
-    const API_BASE = (window.location.hostname.includes('loca.lt') || window.location.hostname.includes('trycloudflare.com'))
-        ? 'https://green-ears-first-donated.trycloudflare.com'
-        : `http://${window.location.hostname}:5000`;
+    const API_BASE = (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1'))
+    ? `http://${window.location.hostname}:5000`
+    : 'https://apex-s1q2.onrender.com';
 
     useEffect(() => {
         fetchQuizzes();
@@ -49,6 +76,7 @@ const QuizMonitoringTab = () => {
         const loadImage = (url) => {
             return new Promise((resolve) => {
                 const img = new Image();
+                img.crossOrigin = "Anonymous";
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     canvas.width = img.width;
@@ -218,17 +246,22 @@ const QuizMonitoringTab = () => {
         }
     };
 
-    const handleRetest = async (resultId) => {
-        if (!window.confirm('Are you sure you want to grant a retest? This will permanently delete the current result.')) return;
-
-        try {
-            await axios.delete(`${API_BASE}/api/quiz/results/${resultId}`);
-            toast.success('Retest granted successfully');
-            // Refresh submissions
-            handleQuizSelect(selectedQuizId);
-        } catch (err) {
-            toast.error('Failed to grant retest');
-        }
+    const handleRetest = async (resultId, studentName = 'this candidate') => {
+        triggerConfirm({
+            title: 'Grant Retest Protocol',
+            message: `Are you sure you want to grant a retest to ${studentName}? This will permanently delete their current submission so they can retake the quiz.`,
+            confirmText: 'Grant Retest',
+            onConfirm: async () => {
+                try {
+                    await axios.delete(`${API_BASE}/api/quiz/results/${resultId}`);
+                    toast.success('Retest granted successfully');
+                    // Refresh submissions
+                    handleQuizSelect(selectedQuizId);
+                } catch (err) {
+                    toast.error('Failed to grant retest');
+                }
+            }
+        });
     };
 
     return (
@@ -239,7 +272,7 @@ const QuizMonitoringTab = () => {
                     <p className="text-slate-500 font-medium">Audit real-time quiz performance and candidate metrics.</p>
                 </div>
 
-                <div className="flex flex-col md:flex-row items-stretch md:items-end gap-4 w-full md:w-auto">
+                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 w-full md:w-auto">
                     <div className="relative w-full md:w-64">
                         <select
                             value={selectedQuizId}
@@ -253,21 +286,23 @@ const QuizMonitoringTab = () => {
                         </select>
                     </div>
 
-                    <button
-                        disabled={!selectedQuizId || submissions.length === 0}
-                        onClick={downloadReport}
-                        className="flex items-center justify-center gap-3 px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 shrink-0"
-                    >
-                        <Download size={16} /> Download Report
-                    </button>
+                    <div className="relative w-full md:w-64">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <input
+                            type="text"
+                            placeholder="Search by Name or USN..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
+                        />
+                    </div>
                 </div>
             </div>
 
             <AnimatePresence mode="wait">
                 {loading ? (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-white rounded-[2.5rem] p-32 shadow-xl border border-slate-100 flex flex-col items-center justify-center text-center">
-                        <div className="w-16 h-16 border-8 border-slate-100 border-t-blue-600 rounded-full animate-spin mb-6" />
-                        <p className="font-black text-slate-400 uppercase tracking-widest text-sm">Synchronizing Ledger...</p>
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-white rounded-[2.5rem] p-16 shadow-xl border border-slate-100 flex flex-col items-center justify-center text-center">
+                        <LoadingScreen message="Synchronizing Ledger..." dark={false} fullScreen={false} />
                     </motion.div>
                 ) : selectedQuizId ? (
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
@@ -286,11 +321,17 @@ const QuizMonitoringTab = () => {
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Candidate</th>
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Score Index</th>
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Time Logs</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Violations</th>
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
-                                        {submissions.map((sub) => (
+                                        {submissions.filter(sub => {
+                                            const term = searchQuery.toLowerCase();
+                                            const nameMatch = sub.userId?.name?.toLowerCase().includes(term);
+                                            const usnMatch = sub.userId?.usn?.toLowerCase().includes(term);
+                                            return nameMatch || usnMatch;
+                                        }).map((sub) => (
                                             <tr key={sub._id} className="hover:bg-slate-50/80 transition-all">
                                                 <td className="px-8 py-6">
                                                     <div className="flex items-center gap-4">
@@ -314,14 +355,25 @@ const QuizMonitoringTab = () => {
                                                 <td className="px-8 py-6 text-xs font-bold text-slate-500">
                                                     {Math.floor(sub.timeTaken / 60)}m {sub.timeTaken % 60}s
                                                 </td>
+                                                <td className="px-8 py-6">
+                                                    <div className="flex flex-col">
+                                                        <span className={`text-xs font-black ${((sub.violations?.tabSwitches || 0) + (sub.violations?.fullscreenExits || 0)) > 0 ? 'text-rose-500 font-extrabold' : 'text-slate-500'}`}>
+                                                            {((sub.violations?.tabSwitches || 0) + (sub.violations?.fullscreenExits || 0))} / 3
+                                                        </span>
+                                                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tight mt-0.5">
+                                                            {sub.violations?.fullscreenExits || 0} FS | {sub.violations?.tabSwitches || 0} Tab
+                                                        </span>
+                                                    </div>
+                                                </td>
                                                 <td className="px-8 py-6 text-right">
                                                     <div className="flex items-center justify-end gap-2">
                                                         <button
-                                                            onClick={() => handleRetest(sub._id)}
-                                                            className="p-3 text-slate-400 hover:text-amber-600 transition-all hover:bg-amber-50 rounded-xl"
-                                                            title="Grant Retest"
+                                                            onClick={() => handleRetest(sub._id, sub.userId?.name)}
+                                                            title={`Grant retest to ${sub.userId?.name}`}
+                                                            className="flex items-center gap-1.5 px-3 py-2.5 bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 hover:border-amber-300 rounded-[1.25rem] transition-all shadow-sm text-[10px] font-black uppercase tracking-widest group/retest"
                                                         >
-                                                            <RotateCcw size={18} />
+                                                            <RotateCcw size={14} className="group-hover/retest:rotate-[-90deg] transition-transform duration-300" />
+                                                            Retest
                                                         </button>
                                                         <button
                                                             onClick={async () => {
@@ -335,9 +387,10 @@ const QuizMonitoringTab = () => {
                                                                     setLoading(false);
                                                                 }
                                                             }}
-                                                            className="p-3 text-slate-400 hover:text-blue-600 transition-all hover:bg-blue-50 rounded-xl"
+                                                            title="View result detail"
+                                                            className="p-3 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-300 rounded-[1.25rem] transition-all shadow-sm group/btn hover:shadow-lg"
                                                         >
-                                                            <Eye size={18} />
+                                                            <Eye size={18} className="group-hover/btn:scale-110 transition-transform" />
                                                         </button>
                                                     </div>
                                                 </td>
@@ -376,7 +429,7 @@ const QuizMonitoringTab = () => {
                                 <button onClick={() => setViewingResult(null)} className="w-full sm:w-auto px-6 py-2 bg-slate-200/50 sm:bg-transparent hover:bg-slate-200 rounded-xl transition-all font-black text-slate-400 text-[10px] uppercase tracking-widest">Exit Log</button>
                             </div>
                             <div className="p-5 sm:p-8 overflow-y-auto">
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8 sm:mb-10">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-8 sm:mb-10">
                                     <div className="p-4 sm:p-5 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col justify-center items-center sm:items-start text-center sm:text-left">
                                         <p className="text-[7px] sm:text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Final Score</p>
                                         <p className="text-lg sm:text-xl font-black text-slate-900">{viewingResult.score} / {viewingResult.totalMarks}</p>
@@ -388,6 +441,15 @@ const QuizMonitoringTab = () => {
                                     <div className="p-4 sm:p-5 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col justify-center items-center sm:items-start text-center sm:text-left">
                                         <p className="text-[7px] sm:text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Time Invested</p>
                                         <p className="text-lg sm:text-xl font-black text-slate-900">{Math.floor(viewingResult.timeTaken / 60)}m {viewingResult.timeTaken % 60}s</p>
+                                    </div>
+                                    <div className="p-4 sm:p-5 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col justify-center items-center sm:items-start text-center sm:text-left">
+                                        <p className="text-[7px] sm:text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Submission Protocol</p>
+                                        <p className={`text-lg sm:text-xl font-black ${viewingResult.submissionType === 'Auto' ? 'text-amber-500' : 'text-emerald-500'}`}>
+                                            {viewingResult.submissionType === 'Auto' ? 'Auto Submitted' : 'Normal Submit'}
+                                        </p>
+                                        <p className="text-[7px] sm:text-[8px] text-slate-400 font-bold tracking-widest uppercase mt-1">
+                                            {viewingResult.submissionType === 'Auto' ? 'Security/Time Trigger' : 'User Initiated'}
+                                        </p>
                                     </div>
                                 </div>
 
@@ -478,6 +540,17 @@ const QuizMonitoringTab = () => {
                     </div>
                 )}
             </AnimatePresence>
+
+            {/* Premium Custom Confirmation Overlay */}
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                onConfirm={confirmModal.onConfirm}
+                onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                confirmText={confirmModal.confirmText}
+                type={confirmModal.type}
+            />
         </div>
     );
 };

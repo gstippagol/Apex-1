@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogOut, User, Menu, X, Home, Info, Phone, LogIn, UserPlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,20 +9,30 @@ import museLogo from '../assets/muse_logo.png';
 const Navbar = () => {
   const { user, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const scrollToSection = (id) => {
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-      window.history.pushState(null, null, `#${id}`);
-      setIsMobileMenuOpen(false);
+    if (location.pathname === '/') {
+      const element = document.getElementById(id);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+        window.history.pushState(null, null, `#${id}`);
+        setIsMobileMenuOpen(false);
+      }
     } else {
-      window.location.href = `/#${id}`;
+      navigate(`/#${id}`);
+      setIsMobileMenuOpen(false);
     }
   };
 
   const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (location.pathname === '/') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      navigate('/');
+      window.scrollTo({ top: 0 });
+    }
     setIsMobileMenuOpen(false);
   };
 
@@ -36,10 +46,10 @@ const Navbar = () => {
                 <img src={logo} alt="APEX" className="w-full h-full object-contain" />
               </div>
               <div className="flex flex-col">
-                <span className="text-[15px] md:text-2xl font-black tracking-tight text-slate-800 leading-none">
+                <span className="text-[15px] md:text-2xl font-bold tracking-tight text-slate-800 leading-none">
                   APEX <span className="text-blue-600">Club</span>
                 </span>
-                <span className="text-[7px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 leading-none">
+                <span className="text-[7px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 leading-none">
                   Peak of Success
                 </span>
               </div>
@@ -50,8 +60,8 @@ const Navbar = () => {
                 <img src={museLogo} alt="MUSE" className="w-full h-full object-contain" />
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="hidden md:block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">Affiliated To</span>
-                <span className="text-[7px] md:text-xs font-black text-slate-600 tracking-tight leading-[1.1] uppercase max-w-[120px] md:max-w-none whitespace-normal">
+                <span className="hidden md:block text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1.5">Affiliated To</span>
+                <span className="text-[7px] md:text-xs font-bold text-slate-600 tracking-tight leading-[1.1] uppercase max-w-[120px] md:max-w-none whitespace-normal">
                   Mysore University School of Engineering
                 </span>
               </div>
@@ -60,9 +70,9 @@ const Navbar = () => {
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-8">
-            <Link to="/" onClick={scrollToTop} className="text-[13px] font-black uppercase tracking-[0.15em] text-slate-500 hover:text-blue-600 transition-colors">Home</Link>
-            <button onClick={() => scrollToSection('footer')} className="text-[13px] font-black uppercase tracking-[0.15em] text-slate-500 hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-none">About</button>
-            <button onClick={() => scrollToSection('footer')} className="text-[13px] font-black uppercase tracking-[0.15em] text-slate-500 hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-none">Contact</button>
+            <Link to="/" onClick={scrollToTop} className="text-[13px] font-semibold uppercase tracking-[0.15em] text-slate-500 hover:text-blue-600 transition-colors">Home</Link>
+            <button onClick={() => scrollToSection('footer')} className="text-[13px] font-semibold uppercase tracking-[0.15em] text-slate-500 hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-none">About</button>
+            <button onClick={() => scrollToSection('footer')} className="text-[13px] font-semibold uppercase tracking-[0.15em] text-slate-500 hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-none">Contact</button>
 
             {user ? (
               <div className="flex items-center gap-5">
@@ -70,14 +80,14 @@ const Navbar = () => {
                   to="/account"
                   className="flex items-center gap-3 text-slate-800 font-bold bg-slate-50 px-5 py-2.5 rounded-2xl hover:shadow-lg hover:-translate-y-0.5 transition-all shadow-sm border border-slate-100"
                 >
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-xl flex items-center justify-center text-[11px] font-black shadow-md">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-xl flex items-center justify-center text-[11px] font-bold shadow-md">
                     {user.name?.charAt(0).toUpperCase()}
                   </div>
                   <span className="max-w-[150px] truncate text-sm">{(user.role === 'admin' || user.role === 'superadmin') ? 'Administrator' : user.name}</span>
                 </Link>
                 <button
                   onClick={logout}
-                  className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.15em] text-red-500 hover:bg-red-50 px-5 py-2.5 rounded-2xl transition-all border border-transparent hover:border-red-100"
+                  className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-red-500 hover:bg-red-50 px-5 py-2.5 rounded-2xl transition-all border border-transparent hover:border-red-100"
                 >
                   <LogOut size={16} />
                   <span>Logout</span>
@@ -85,8 +95,8 @@ const Navbar = () => {
               </div>
             ) : (
               <div className="flex items-center gap-5">
-                <Link to="/login" className="text-[13px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 px-3 py-2 transition-all">Login</Link>
-                <Link to="/register" className="bg-slate-900 text-white px-8 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-2xl hover:bg-black hover:scale-105 active:scale-95 transition-all">Get Started</Link>
+                <Link to="/login" className="text-[13px] font-semibold uppercase tracking-widest text-slate-500 hover:text-blue-600 px-3 py-2 transition-all">Login</Link>
+                <Link to="/register" className="bg-slate-900 text-white px-8 py-3.5 rounded-2xl text-[11px] font-semibold uppercase tracking-widest shadow-2xl hover:bg-black hover:scale-105 active:scale-95 transition-all">Get Started</Link>
               </div>
             )}
           </div>
@@ -136,7 +146,7 @@ const Navbar = () => {
                       <Link 
                         to={item.to} 
                         onClick={() => { if(item.action) item.action(); setIsMobileMenuOpen(false); }}
-                        className={`flex items-center gap-4 p-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] transition-all ${
+                        className={`flex items-center gap-4 p-4 rounded-2xl font-semibold text-[11px] uppercase tracking-[0.2em] transition-all ${
                           item.highlight ? 'text-blue-600 bg-blue-50' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                         }`}
                       >
@@ -145,7 +155,7 @@ const Navbar = () => {
                     ) : (
                       <button 
                         onClick={() => { item.action(); setIsMobileMenuOpen(false); }}
-                        className="w-full flex items-center gap-4 p-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-all text-left"
+                        className="w-full flex items-center gap-4 p-4 rounded-2xl font-semibold text-[11px] uppercase tracking-[0.2em] text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-all text-left"
                       >
                         <item.icon size={18} /> {item.label}
                       </button>
@@ -161,7 +171,7 @@ const Navbar = () => {
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.3 }}
                     onClick={() => { logout(); setIsMobileMenuOpen(false); }}
-                    className="flex items-center justify-center gap-3 w-full py-4 bg-red-50 text-red-500 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] transition-all border border-red-100/50"
+                    className="flex items-center justify-center gap-3 w-full py-4 bg-red-50 text-red-500 rounded-2xl font-semibold text-[11px] uppercase tracking-[0.2em] transition-all border border-red-100/50"
                   >
                     <LogOut size={18} /> Logout
                   </motion.button>
@@ -170,14 +180,14 @@ const Navbar = () => {
                     <Link 
                       to="/login" 
                       onClick={() => setIsMobileMenuOpen(false)} 
-                      className="flex items-center justify-center gap-2 py-4 bg-slate-50 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] border border-slate-200/50"
+                      className="flex items-center justify-center gap-2 py-4 bg-slate-50 text-slate-600 rounded-2xl font-semibold text-[10px] uppercase tracking-[0.15em] border border-slate-200/50"
                     >
                       Login
                     </Link>
                     <Link 
                       to="/register" 
                       onClick={() => setIsMobileMenuOpen(false)} 
-                      className="flex items-center justify-center gap-2 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] shadow-lg shadow-slate-900/20"
+                      className="flex items-center justify-center gap-2 py-4 bg-slate-900 text-white rounded-2xl font-semibold text-[10px] uppercase tracking-[0.15em] shadow-lg shadow-slate-900/20"
                     >
                       Sign Up
                     </Link>

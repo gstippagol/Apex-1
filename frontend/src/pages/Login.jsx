@@ -24,16 +24,33 @@ const Login = () => {
             e.preventDefault();
         };
 
+        const handleKeyDown = (e) => {
+            if (e.keyCode === 123 || // F12
+                (e.ctrlKey && e.shiftKey && e.keyCode === 73) || // Ctrl+Shift+I
+                (e.ctrlKey && e.shiftKey && e.keyCode === 74) || // Ctrl+Shift+J
+                (e.ctrlKey && e.shiftKey && e.keyCode === 67) || // Ctrl+Shift+C
+                (e.ctrlKey && e.keyCode === 85)) {               // Ctrl+U
+                e.preventDefault();
+            }
+        };
+
+        const blockDevTools = setInterval(() => {
+            Function("debugger")();
+        }, 50);
+
         document.addEventListener('copy', handleSecurity);
         document.addEventListener('paste', handleSecurity);
         document.addEventListener('cut', handleSecurity);
         document.addEventListener('contextmenu', handleSecurity);
+        document.addEventListener('keydown', handleKeyDown);
 
         return () => {
+            clearInterval(blockDevTools);
             document.removeEventListener('copy', handleSecurity);
             document.removeEventListener('paste', handleSecurity);
             document.removeEventListener('cut', handleSecurity);
             document.removeEventListener('contextmenu', handleSecurity);
+            document.removeEventListener('keydown', handleKeyDown);
         };
     }, []);
 
@@ -104,8 +121,8 @@ const Login = () => {
             >
                 <div className="text-center mb-8">
                     <div className="flex justify-center mb-6">
-                        <div className="w-16 h-16 bg-slate-50 p-2 rounded-2xl border border-slate-100 shadow-inner">
-                            <img src={logo} alt="APEX" className="w-full h-full object-contain" />
+                        <div className="w-24 h-24 bg-slate-50 p-2 rounded-2xl border border-slate-100 shadow-inner">
+                            <img src={logo} alt="APEX" className="w-full h-full object-contain scale-110" />
                         </div>
                     </div>
                     <h2 className="text-3xl font-bold mb-2">Welcome Back</h2>
@@ -141,15 +158,17 @@ const Login = () => {
                                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                             />
                         </div>
-                        <div className="flex justify-end mt-2">
-                            <button 
-                                type="button" 
-                                onClick={() => setShowForgotModal(true)}
-                                className="text-xs font-bold text-slate-400 hover:text-blue-600 transition-all uppercase tracking-widest"
-                            >
-                                Forgot Password?
-                            </button>
-                        </div>
+                        {settings?.isEmailEnabled !== false && (
+                            <div className="flex justify-end mt-2">
+                                <button 
+                                    type="button" 
+                                    onClick={() => setShowForgotModal(true)}
+                                    className="text-xs font-bold text-slate-400 hover:text-blue-600 transition-all uppercase tracking-widest"
+                                >
+                                    Forgot Password?
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     <button 
