@@ -3405,3 +3405,404 @@
 {"level":"info","message":"User connected: 7CEuUKj9TrzDqQBrAAAD","service":"apex-backend","timestamp":"2026-05-28 15:48:36"}
 {"level":"info","message":"User connected: GNroUPab2r4kGc4mAAAE","service":"apex-backend","timestamp":"2026-05-28 15:48:36"}
 {"level":"info","message":"User connected: XGaFn_gZYs-VjXLKAAAF","service":"apex-backend","timestamp":"2026-05-28 15:48:36"}
+{"level":"info","message":"Server running in development mode on port 5000","service":"apex-backend","timestamp":"2026-05-31 12:16:22"}
+{"level":"info","message":"User connected: Te1Rk8jMgg6y9ZLeAAAC","service":"apex-backend","timestamp":"2026-05-31 12:16:39"}
+{"level":"info","message":"User connected: Cr_dzWwD3dypcaAGAAAF","service":"apex-backend","timestamp":"2026-05-31 12:16:47"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:16:55"}
+{"level":"info","message":"User connected: _6EsZzZNpxvcC4FrAAAH","service":"apex-backend","timestamp":"2026-05-31 12:17:13"}
+{"level":"info","message":"User 6a0987d4fd202f169de06fd2 joined their private room: user_6a0987d4fd202f169de06fd2","service":"apex-backend","timestamp":"2026-05-31 12:17:13"}
+{"level":"info","message":"User connected: 7Kwq_imBmt5PtLkjAAAK","service":"apex-backend","timestamp":"2026-05-31 12:17:14"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:17:39"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:17:39"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:17:39"}
+{"level":"info","message":"User connected: dKPyZwDqbd5449zcAAAN","service":"apex-backend","timestamp":"2026-05-31 12:17:40"}
+{"level":"info","message":"User connected: 1WVugi9ThMuud6sdAAAR","service":"apex-backend","timestamp":"2026-05-31 12:17:40"}
+{"level":"info","message":"User connected: DwU2rbeZIrSw-VxNAAAS","service":"apex-backend","timestamp":"2026-05-31 12:17:40"}
+{"level":"info","message":"User 6a0987d4fd202f169de06fd2 joined their private room: user_6a0987d4fd202f169de06fd2","service":"apex-backend","timestamp":"2026-05-31 12:17:40"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:17:41"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:17:41"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:17:41"}
+{"level":"info","message":"User connected: qkwo-w_ekaYt2r34AAAV","service":"apex-backend","timestamp":"2026-05-31 12:17:41"}
+{"level":"info","message":"User connected: fU5cQwHTajQPSN8CAAAZ","service":"apex-backend","timestamp":"2026-05-31 12:17:41"}
+{"level":"info","message":"User 6a0987d4fd202f169de06fd2 joined their private room: user_6a0987d4fd202f169de06fd2","service":"apex-backend","timestamp":"2026-05-31 12:17:41"}
+{"level":"info","message":"User connected: LSlAWh6Ju_C5UZqEAAAa","service":"apex-backend","timestamp":"2026-05-31 12:17:41"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:17:41"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:17:41"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:17:41"}
+{"level":"info","message":"User connected: 3vu8CBGSvueaXBa1AAAd","service":"apex-backend","timestamp":"2026-05-31 12:17:41"}
+{"level":"info","message":"User connected: rSDHChJ9rcpDH5lsAAAh","service":"apex-backend","timestamp":"2026-05-31 12:17:44"}
+{"level":"info","message":"User connected: tgoN7SfZ2y1oK4AyAAAi","service":"apex-backend","timestamp":"2026-05-31 12:17:44"}
+{"level":"info","message":"User 6a0987d4fd202f169de06fd2 joined their private room: user_6a0987d4fd202f169de06fd2","service":"apex-backend","timestamp":"2026-05-31 12:17:44"}
+{"level":"info","message":"User connected: bVXcrMhMzC_Gqq0ZAAAk","service":"apex-backend","timestamp":"2026-05-31 12:17:44"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:17:56"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:17:56"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:17:56"}
+{"level":"info","message":"User connected: ZeBqTL1mFDJ-HKasAAAn","service":"apex-backend","timestamp":"2026-05-31 12:17:57"}
+{"level":"info","message":"User connected: pUQePe7LzXvxicCXAAAr","service":"apex-backend","timestamp":"2026-05-31 12:17:57"}
+{"level":"info","message":"User connected: pZlo4Wqq6gSPwwRlAAAs","service":"apex-backend","timestamp":"2026-05-31 12:17:57"}
+{"level":"info","message":"User 6a0987d4fd202f169de06fd2 joined their private room: user_6a0987d4fd202f169de06fd2","service":"apex-backend","timestamp":"2026-05-31 12:17:57"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:18:13"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:18:26"}
+{"level":"info","message":"User connected: L83hwBXIJ8mIjrQ3AAAv","service":"apex-backend","timestamp":"2026-05-31 12:18:29"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:18:29"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:18:30"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:18:33"}
+{"level":"info","message":"User connected: ND1OPWHwwJdV6re7AAAy","service":"apex-backend","timestamp":"2026-05-31 12:18:38"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:18:39"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:18:39"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:18:43"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:18:43"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:18:43"}
+{"level":"info","message":"User connected: YnjDhexDa6dJUOmlAAA1","service":"apex-backend","timestamp":"2026-05-31 12:18:57"}
+{"level":"info","message":"User connected: _0yGqs4xtQU_smOBAAA3","service":"apex-backend","timestamp":"2026-05-31 12:18:57"}
+{"level":"info","message":"User 6a0987d4fd202f169de06fd2 joined their private room: user_6a0987d4fd202f169de06fd2","service":"apex-backend","timestamp":"2026-05-31 12:18:57"}
+{"level":"info","message":"User connected: exxFfNSy8P_2bE8kAAA6","service":"apex-backend","timestamp":"2026-05-31 12:18:59"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:18:59"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:18:59"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:19:02"}
+{"level":"info","message":"User connected: Jur6jBmKxTZBpmioAAA9","service":"apex-backend","timestamp":"2026-05-31 12:19:04"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:19:04"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:19:04"}
+{"level":"info","message":"Server running in development mode on port 5000","service":"apex-backend","timestamp":"2026-05-31 12:23:51"}
+{"level":"info","message":"User connected: 5rqU6N3P2a_BRm_SAAAB","service":"apex-backend","timestamp":"2026-05-31 12:23:51"}
+{"level":"info","message":"User connected: D3dtFh3aG8td8XYlAAAD","service":"apex-backend","timestamp":"2026-05-31 12:23:53"}
+{"level":"info","message":"Server running in development mode on port 5000","service":"apex-backend","timestamp":"2026-05-31 12:24:01"}
+{"level":"info","message":"User connected: JsKiTIMku9GacHUHAAAB","service":"apex-backend","timestamp":"2026-05-31 12:24:01"}
+{"level":"info","message":"User connected: FCIyL4ql21Q_gWLNAAAD","service":"apex-backend","timestamp":"2026-05-31 12:24:04"}
+{"level":"info","message":"User connected: nBxK8fXNk1unobUPAAAF","service":"apex-backend","timestamp":"2026-05-31 12:24:05"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:24:18"}
+{"level":"info","message":"User connected: X0Q-lfOIzxY5PbjMAAAH","service":"apex-backend","timestamp":"2026-05-31 12:24:19"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:24:19"}
+{"level":"info","message":"Server running in development mode on port 5000","service":"apex-backend","timestamp":"2026-05-31 12:25:57"}
+{"level":"info","message":"User connected: N-5xbb7bbZo1yxshAAAB","service":"apex-backend","timestamp":"2026-05-31 12:25:57"}
+{"level":"info","message":"User connected: tDR938HoZ7IOZiZoAAAD","service":"apex-backend","timestamp":"2026-05-31 12:25:58"}
+{"level":"info","message":"User connected: 9efxwoP9hxQ0T187AAAF","service":"apex-backend","timestamp":"2026-05-31 12:26:02"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:26:02"}
+{"level":"info","message":"Server running in development mode on port 5000","service":"apex-backend","timestamp":"2026-05-31 12:29:13"}
+{"level":"info","message":"User connected: tRRGAtJDO3vNzagNAAAD","service":"apex-backend","timestamp":"2026-05-31 12:29:13"}
+{"level":"info","message":"User connected: WWpEJ-DwlRFFbfSmAAAE","service":"apex-backend","timestamp":"2026-05-31 12:29:13"}
+{"level":"info","message":"User connected: C-8C-889mB49Q_WIAAAF","service":"apex-backend","timestamp":"2026-05-31 12:29:13"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:29:13"}
+{"level":"info","message":"Server running in development mode on port 5000","service":"apex-backend","timestamp":"2026-05-31 12:29:26"}
+{"level":"info","message":"User connected: 0wRCHpk6n4kwTz-4AAAC","service":"apex-backend","timestamp":"2026-05-31 12:29:26"}
+{"level":"info","message":"User connected: aCBjdOkZ-9yo8YHrAAAD","service":"apex-backend","timestamp":"2026-05-31 12:29:26"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:29:27"}
+{"level":"info","message":"User connected: qnov5ackgHvek-31AAAF","service":"apex-backend","timestamp":"2026-05-31 12:29:27"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:29:53"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:29:53"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:29:53"}
+{"level":"info","message":"User connected: ynony85qWkd-R0gAAAAI","service":"apex-backend","timestamp":"2026-05-31 12:29:54"}
+{"level":"info","message":"User connected: N5h170Cr04uJdfeMAAAM","service":"apex-backend","timestamp":"2026-05-31 12:29:54"}
+{"level":"info","message":"User connected: Of3pAv82pp4_3RYCAAAN","service":"apex-backend","timestamp":"2026-05-31 12:29:54"}
+{"level":"info","message":"User 6a0987d4fd202f169de06fd2 joined their private room: user_6a0987d4fd202f169de06fd2","service":"apex-backend","timestamp":"2026-05-31 12:29:54"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:29:54"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:29:54"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:29:58"}
+{"level":"info","message":"User connected: 1gkXYr5aqhqGJ1q-AAAQ","service":"apex-backend","timestamp":"2026-05-31 12:30:02"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:30:02"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:30:02"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:30:03"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:30:03"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:30:03"}
+{"level":"info","message":"User connected: Q3kS2PNTk6hy1f-MAAAT","service":"apex-backend","timestamp":"2026-05-31 12:30:03"}
+{"level":"info","message":"User connected: m0jjYkMkPsg6S8xXAAAX","service":"apex-backend","timestamp":"2026-05-31 12:30:03"}
+{"level":"info","message":"User 6a0987d4fd202f169de06fd2 joined their private room: user_6a0987d4fd202f169de06fd2","service":"apex-backend","timestamp":"2026-05-31 12:30:03"}
+{"level":"info","message":"User connected: N0OKxG1YFb0O29P7AAAY","service":"apex-backend","timestamp":"2026-05-31 12:30:04"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:30:04"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:30:04"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:30:07"}
+{"level":"info","message":"User connected: 9v_RXJ48ku41n8kDAAAb","service":"apex-backend","timestamp":"2026-05-31 12:30:19"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:30:19"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:30:19"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:30:23"}
+{"level":"info","message":"User connected: wQAGRpDpe_vxPHaOAAAe","service":"apex-backend","timestamp":"2026-05-31 12:30:34"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:30:34"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:30:35"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:39:35"}
+{"level":"info","message":"User connected: ZyB5dKdruvX9XUMWAAAg","service":"apex-backend","timestamp":"2026-05-31 12:39:35"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:39:35"}
+{"level":"info","message":"Server running in development mode on port 5000","service":"apex-backend","timestamp":"2026-05-31 12:48:56"}
+{"level":"info","message":"User connected: XRxroUETwlfBvmzPAAAC","service":"apex-backend","timestamp":"2026-05-31 12:48:56"}
+{"level":"info","message":"User connected: veLBrk9LncUIyKVzAAAD","service":"apex-backend","timestamp":"2026-05-31 12:48:56"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:48:56"}
+{"level":"info","message":"User connected: 1J2-24gD6VAhJEcFAAAF","service":"apex-backend","timestamp":"2026-05-31 12:48:56"}
+{"level":"info","message":"Server running in development mode on port 5000","service":"apex-backend","timestamp":"2026-05-31 12:51:10"}
+{"level":"info","message":"User connected: 0H1Y7VJTKAyo7A6dAAAD","service":"apex-backend","timestamp":"2026-05-31 12:51:11"}
+{"level":"info","message":"User connected: C9pApywrVhtRq8u7AAAE","service":"apex-backend","timestamp":"2026-05-31 12:51:11"}
+{"level":"info","message":"User connected: qyAYve7qxUFtYcVmAAAF","service":"apex-backend","timestamp":"2026-05-31 12:51:11"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:51:11"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:52:14"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:52:21"}
+{"level":"info","message":"User connected: lPJT6T--InhFS6U6AAAH","service":"apex-backend","timestamp":"2026-05-31 12:52:21"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:52:22"}
+{"level":"info","message":"User connected: UvbCyZJBk03iFcIGAAAK","service":"apex-backend","timestamp":"2026-05-31 12:52:22"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:52:59"}
+{"level":"info","message":"User connected: aMQBifamFnyXF0ucAAAM","service":"apex-backend","timestamp":"2026-05-31 12:53:38"}
+{"level":"info","message":"User 6a0987d4fd202f169de06fd2 joined their private room: user_6a0987d4fd202f169de06fd2","service":"apex-backend","timestamp":"2026-05-31 12:53:38"}
+{"level":"info","message":"User connected: f8fCSyZ82eryEwWTAAAP","service":"apex-backend","timestamp":"2026-05-31 12:53:38"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:53:38"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:53:38"}
+{"level":"info","message":"User connected: 28jI0OV5iz7FVvW-AAAS","service":"apex-backend","timestamp":"2026-05-31 12:54:26"}
+{"level":"info","message":"User connected: rsogQ8wcALTwOpbWAAAU","service":"apex-backend","timestamp":"2026-05-31 12:54:26"}
+{"level":"info","message":"User 6a0987d4fd202f169de06fd2 joined their private room: user_6a0987d4fd202f169de06fd2","service":"apex-backend","timestamp":"2026-05-31 12:54:26"}
+{"level":"info","message":"User connected: LqzOtFrunFSwvbutAAAX","service":"apex-backend","timestamp":"2026-05-31 12:54:28"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:54:30"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:54:30"}
+{"level":"info","message":"User connected: D-iCET0kToY0JAYCAAAa","service":"apex-backend","timestamp":"2026-05-31 12:54:30"}
+{"level":"info","message":"User connected: WyHitKLoEUUEAuPgAAAc","service":"apex-backend","timestamp":"2026-05-31 12:54:53"}
+{"level":"info","message":"User 6a098926e178b4ded294981a joined their private room: user_6a098926e178b4ded294981a","service":"apex-backend","timestamp":"2026-05-31 12:54:53"}
+{"level":"info","message":"User connected: U0t9lC0JSJsxPRpZAAAf","service":"apex-backend","timestamp":"2026-05-31 12:54:54"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:55:07"}
+{"level":"info","message":"User connected: esRb-v7scWbbFGmXAAAi","service":"apex-backend","timestamp":"2026-05-31 12:55:07"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:55:07"}
+{"level":"info","message":"User connected: TntG_-iG856w64r3AAAo","service":"apex-backend","timestamp":"2026-05-31 12:55:08"}
+{"level":"info","message":"User connected: dt0kVfwe3k9SSY_BAAAp","service":"apex-backend","timestamp":"2026-05-31 12:55:08"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:55:08"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:55:08"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:55:13"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:56:10"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:56:10"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:56:10"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:56:12"}
+{"level":"info","message":"User connected: DXNz_7LvVjFmf9mdAAAs","service":"apex-backend","timestamp":"2026-05-31 12:56:12"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:56:27"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:56:31"}
+{"level":"info","message":"User connected: RZ25bHJefFmcF0gnAAAv","service":"apex-backend","timestamp":"2026-05-31 12:56:31"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:56:31"}
+{"level":"info","message":"User connected: 9PCC0oFqDPFmP_MQAAA1","service":"apex-backend","timestamp":"2026-05-31 12:56:32"}
+{"level":"info","message":"User connected: nNj5bJUI_OObF9RvAAA2","service":"apex-backend","timestamp":"2026-05-31 12:56:32"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:56:32"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:56:32"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:57:07"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:57:07"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 12:57:07"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 12:57:09"}
+{"level":"info","message":"User connected: AL6z8IE8nZ-P7MzzAAA5","service":"apex-backend","timestamp":"2026-05-31 12:57:10"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:00:09"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:00:09"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:00:09"}
+{"level":"info","message":"User connected: XJxq8Mqfb6l5c8JZAAA8","service":"apex-backend","timestamp":"2026-05-31 13:00:09"}
+{"level":"info","message":"User connected: BZMeDf1m-XOjNBXfAABA","service":"apex-backend","timestamp":"2026-05-31 13:00:09"}
+{"level":"info","message":"User connected: 4Kk3TKd1SRvTaMv8AABB","service":"apex-backend","timestamp":"2026-05-31 13:00:09"}
+{"level":"info","message":"User 6a0987d4fd202f169de06fd2 joined their private room: user_6a0987d4fd202f169de06fd2","service":"apex-backend","timestamp":"2026-05-31 13:00:09"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:00:09"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:00:10"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:00:18"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:00:24"}
+{"level":"info","message":"User connected: SIVYbBxelef6QXM8AABE","service":"apex-backend","timestamp":"2026-05-31 13:00:24"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:00:24"}
+{"level":"info","message":"User connected: mRTAn_RzW6dccIG_AABK","service":"apex-backend","timestamp":"2026-05-31 13:00:25"}
+{"level":"info","message":"User connected: ptT5V-yPwnP1ezRnAABL","service":"apex-backend","timestamp":"2026-05-31 13:00:25"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:00:25"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:00:25"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:00:53"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:00:53"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:00:53"}
+{"level":"info","message":"User connected: BVJD-tolUzmFZcExAABO","service":"apex-backend","timestamp":"2026-05-31 13:00:53"}
+{"level":"info","message":"User connected: 0AJmtLa64Ph5E73fAABS","service":"apex-backend","timestamp":"2026-05-31 13:00:54"}
+{"level":"info","message":"User connected: ZtZA4o4R5pqCzs6UAABT","service":"apex-backend","timestamp":"2026-05-31 13:00:54"}
+{"level":"info","message":"User 6a0987d4fd202f169de06fd2 joined their private room: user_6a0987d4fd202f169de06fd2","service":"apex-backend","timestamp":"2026-05-31 13:00:54"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:00:54"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:00:54"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:02:18"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:02:18"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:02:19"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:02:21"}
+{"level":"info","message":"User connected: TcSycseYNERTUD5JAABW","service":"apex-backend","timestamp":"2026-05-31 13:02:21"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:05:27"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:05:31"}
+{"level":"info","message":"User connected: MW62A8K_M_ERjaHKAABZ","service":"apex-backend","timestamp":"2026-05-31 13:05:31"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:05:31"}
+{"level":"info","message":"User connected: p3X2sdO_1SXW4vopAABf","service":"apex-backend","timestamp":"2026-05-31 13:05:32"}
+{"level":"info","message":"User connected: oE3xmN9GgKdLevBgAABg","service":"apex-backend","timestamp":"2026-05-31 13:05:32"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:05:32"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:05:32"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:06:28"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:06:28"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:06:28"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:06:30"}
+{"level":"info","message":"User connected: kR-rsgTtDom-0-1zAABj","service":"apex-backend","timestamp":"2026-05-31 13:06:30"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:11:09"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:11:19"}
+{"level":"info","message":"User connected: BQoAz1xdvInyDhdMAABm","service":"apex-backend","timestamp":"2026-05-31 13:11:19"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:11:19"}
+{"level":"info","message":"User connected: EwfsPDQ9U-kiFPtiAABs","service":"apex-backend","timestamp":"2026-05-31 13:11:20"}
+{"level":"info","message":"User connected: 8uyXH9RlFRZj6PqhAABt","service":"apex-backend","timestamp":"2026-05-31 13:11:20"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:11:20"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:11:20"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:13:46"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:13:46"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:13:46"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:13:48"}
+{"level":"info","message":"User connected: JlanbFmzik657Ke_AABw","service":"apex-backend","timestamp":"2026-05-31 13:13:49"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:15:36"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:15:55"}
+{"level":"info","message":"User connected: PrWJgNXjz7MfSWmCAABz","service":"apex-backend","timestamp":"2026-05-31 13:15:55"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:15:55"}
+{"level":"info","message":"User connected: I5Nk_cexcARgoxQKAAB5","service":"apex-backend","timestamp":"2026-05-31 13:15:56"}
+{"level":"info","message":"User connected: _sno7KNBxfEzLW9fAAB6","service":"apex-backend","timestamp":"2026-05-31 13:15:56"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:15:56"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:15:56"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:16:47"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:16:47"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:16:47"}
+{"level":"info","message":"User connected: 16BRkESD6Th0O9nXAAB9","service":"apex-backend","timestamp":"2026-05-31 13:16:47"}
+{"level":"info","message":"User connected: EAUMK6fF3XmhA_EZAACB","service":"apex-backend","timestamp":"2026-05-31 13:16:47"}
+{"level":"info","message":"User connected: Z9rhKtHOF7B0xwKyAACC","service":"apex-backend","timestamp":"2026-05-31 13:16:47"}
+{"level":"info","message":"User 6a0987d4fd202f169de06fd2 joined their private room: user_6a0987d4fd202f169de06fd2","service":"apex-backend","timestamp":"2026-05-31 13:16:47"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:16:47"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:16:47"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:16:49"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:16:49"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:16:49"}
+{"level":"info","message":"User connected: Ed0SZwc-w_5qEgJEAACF","service":"apex-backend","timestamp":"2026-05-31 13:16:49"}
+{"level":"info","message":"User connected: ZT6-Saque3QqGuCpAACJ","service":"apex-backend","timestamp":"2026-05-31 13:16:49"}
+{"level":"info","message":"User connected: YbUxNA86JFDb0t2vAACK","service":"apex-backend","timestamp":"2026-05-31 13:16:49"}
+{"level":"info","message":"User 6a0987d4fd202f169de06fd2 joined their private room: user_6a0987d4fd202f169de06fd2","service":"apex-backend","timestamp":"2026-05-31 13:16:49"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:16:49"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:16:49"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:16:49"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:16:49"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:16:49"}
+{"level":"info","message":"User connected: kRCHIM6YGUS8JlnWAACN","service":"apex-backend","timestamp":"2026-05-31 13:16:49"}
+{"level":"info","message":"User connected: DdEiUFJ4KC8F8yyEAACR","service":"apex-backend","timestamp":"2026-05-31 13:16:49"}
+{"level":"info","message":"User connected: TcWppEwIK4fZzV26AACX","service":"apex-backend","timestamp":"2026-05-31 13:16:50"}
+{"level":"info","message":"User connected: H0454qeUJyrfAq-TAACb","service":"apex-backend","timestamp":"2026-05-31 13:16:50"}
+{"level":"info","message":"User connected: 6eTXZSJNntpDTDLMAACc","service":"apex-backend","timestamp":"2026-05-31 13:16:50"}
+{"level":"info","message":"User 6a0987d4fd202f169de06fd2 joined their private room: user_6a0987d4fd202f169de06fd2","service":"apex-backend","timestamp":"2026-05-31 13:16:50"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:16:50"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:16:50"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:16:50"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:16:50"}
+{"level":"info","message":"User connected: E2yvSfj8UWVJ-dGMAACf","service":"apex-backend","timestamp":"2026-05-31 13:16:50"}
+{"level":"info","message":"User connected: cCZgWz8SxJ36-UPZAACj","service":"apex-backend","timestamp":"2026-05-31 13:16:51"}
+{"level":"info","message":"User connected: MrGRKhuM0-rPHPx1AACk","service":"apex-backend","timestamp":"2026-05-31 13:16:51"}
+{"level":"info","message":"User 6a0987d4fd202f169de06fd2 joined their private room: user_6a0987d4fd202f169de06fd2","service":"apex-backend","timestamp":"2026-05-31 13:16:51"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:16:51"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:16:51"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:16:54"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:16:54"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:16:54"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:16:56"}
+{"level":"info","message":"User connected: 6G1uDHbeEaztfJGoAACn","service":"apex-backend","timestamp":"2026-05-31 13:16:56"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:17:34"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:17:34"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:22:55"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:22:57"}
+{"level":"info","message":"User connected: SfJGgqljotec7XxjAACq","service":"apex-backend","timestamp":"2026-05-31 13:22:57"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:22:57"}
+{"level":"info","message":"User connected: yab0qFSLjzNtVStaAACw","service":"apex-backend","timestamp":"2026-05-31 13:22:57"}
+{"level":"info","message":"User connected: Tp2r7sSGmjw3nuumAACx","service":"apex-backend","timestamp":"2026-05-31 13:22:57"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:22:57"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:22:57"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:23:51"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:23:51"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:23:51"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:23:53"}
+{"level":"info","message":"User connected: eeaReJQDpaFYSwcaAAC0","service":"apex-backend","timestamp":"2026-05-31 13:23:53"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:33:38"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:33:38"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:33:38"}
+{"level":"info","message":"User connected: p23rha2fQapi3rchAAC3","service":"apex-backend","timestamp":"2026-05-31 13:33:38"}
+{"level":"info","message":"User connected: udjZzT-abOcfYphPAAC7","service":"apex-backend","timestamp":"2026-05-31 13:33:38"}
+{"level":"info","message":"User connected: CA2NO1WiChr5lt2AAAC8","service":"apex-backend","timestamp":"2026-05-31 13:33:38"}
+{"level":"info","message":"User 6a098926e178b4ded294981a joined their private room: user_6a098926e178b4ded294981a","service":"apex-backend","timestamp":"2026-05-31 13:33:38"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:33:48"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:33:55"}
+{"level":"info","message":"User connected: kBsiIop2CQ9MG7WRAAC_","service":"apex-backend","timestamp":"2026-05-31 13:33:55"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:33:55"}
+{"level":"info","message":"User connected: XQCa7cippXh3zvy1AADF","service":"apex-backend","timestamp":"2026-05-31 13:33:56"}
+{"level":"info","message":"User connected: UxVIAwZhElK0Ewb8AADG","service":"apex-backend","timestamp":"2026-05-31 13:33:56"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:33:56"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:33:56"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:34:50"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:34:50"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:34:50"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:34:52"}
+{"level":"info","message":"User connected: odpKDhFcdj0cl4gwAADJ","service":"apex-backend","timestamp":"2026-05-31 13:34:52"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:40:11"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:40:19"}
+{"level":"info","message":"User connected: E-QSfVfXQZD3Xb5QAADM","service":"apex-backend","timestamp":"2026-05-31 13:40:19"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:40:19"}
+{"level":"info","message":"User connected: Pl0xmzRBKbmbctknAADS","service":"apex-backend","timestamp":"2026-05-31 13:40:20"}
+{"level":"info","message":"User connected: pKm9OHs32L852Pf9AADT","service":"apex-backend","timestamp":"2026-05-31 13:40:20"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:40:20"}
+{"level":"info","message":"Student joined exam room: 6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:40:20"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:41:09"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:41:09"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:41:09"}
+{"level":"info","message":"User connected: xwI-3oKZlfe8SY8zAADW","service":"apex-backend","timestamp":"2026-05-31 13:41:09"}
+{"level":"info","message":"User connected: 7ORJ-w9jD10xJBKOAADa","service":"apex-backend","timestamp":"2026-05-31 13:41:09"}
+{"level":"info","message":"User 6a0987d4fd202f169de06fd2 joined their private room: user_6a0987d4fd202f169de06fd2","service":"apex-backend","timestamp":"2026-05-31 13:41:09"}
+{"level":"info","message":"User connected: 1Efj4fCB1i12dBIIAADb","service":"apex-backend","timestamp":"2026-05-31 13:41:09"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:41:09"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:41:09"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:41:47"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:41:47"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:41:47"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:41:48"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:41:55"}
+{"level":"info","message":"User connected: 7KbP_ro3S4aaJHZEAADe","service":"apex-backend","timestamp":"2026-05-31 13:41:55"}
+{"level":"info","message":"User connected: 30CgF0NO6kCHqMB8AADh","service":"apex-backend","timestamp":"2026-05-31 13:45:52"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:46:45"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:46:45"}
+{"level":"error","message":"MulterError: File too large","method":"POST","service":"apex-backend","stack":"MulterError: File too large\n    at abortWithCode (D:\\Apex v1.0\\backend\\node_modules\\multer\\lib\\make-middleware.js:101:22)\n    at FileStream.<anonymous> (D:\\Apex v1.0\\backend\\node_modules\\multer\\lib\\make-middleware.js:211:11)\n    at FileStream.emit (node:events:508:28)\n    at SBMH.ssCb [as _cb] (D:\\Apex v1.0\\backend\\node_modules\\busboy\\lib\\types\\multipart.js:479:32)\n    at feed (D:\\Apex v1.0\\backend\\node_modules\\streamsearch\\lib\\sbmh.js:248:10)\n    at SBMH.push (D:\\Apex v1.0\\backend\\node_modules\\streamsearch\\lib\\sbmh.js:104:16)\n    at Multipart._write (D:\\Apex v1.0\\backend\\node_modules\\busboy\\lib\\types\\multipart.js:567:19)\n    at writeOrBuffer (node:internal/streams/writable:570:12)\n    at _write (node:internal/streams/writable:499:10)\n    at Writable.write (node:internal/streams/writable:508:10)","timestamp":"2026-05-31 13:47:07","url":"/api/upload"}
+{"level":"info","message":"User connected: zGFtV_rrMw4Kv-HiAADm","service":"apex-backend","timestamp":"2026-05-31 13:48:47"}
+{"level":"info","message":"User connected: 7buLFZqgnjQlrrzdAADn","service":"apex-backend","timestamp":"2026-05-31 13:48:47"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:48:48"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:48:48"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:48:50"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:48:50"}
+{"level":"info","message":"User connected: 5x1lB7Q38ULXgEo6AADs","service":"apex-backend","timestamp":"2026-05-31 13:48:57"}
+{"level":"info","message":"User connected: KsSQABSYenEi5b2ZAADt","service":"apex-backend","timestamp":"2026-05-31 13:48:57"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:48:58"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:48:58"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:49:14"}
+{"level":"info","message":"User connected: OUIjStq28WFY2IN1AADw","service":"apex-backend","timestamp":"2026-05-31 13:49:38"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:50:40"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:50:40"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:50:40"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:50:40"}
+{"level":"info","message":"Server running in development mode on port 5000","service":"apex-backend","timestamp":"2026-05-31 13:50:48"}
+{"level":"info","message":"User connected: mb2s2ufmbZjiU1aeAAAC","service":"apex-backend","timestamp":"2026-05-31 13:50:48"}
+{"level":"info","message":"User connected: 2_L5nwoDaddUvsEcAAAD","service":"apex-backend","timestamp":"2026-05-31 13:50:48"}
+{"level":"info","message":"User connected: -5NMq1U8eG3YGRLCAAAF","service":"apex-backend","timestamp":"2026-05-31 13:50:48"}
+{"level":"info","message":"Server running in development mode on port 5000","service":"apex-backend","timestamp":"2026-05-31 13:52:11"}
+{"level":"info","message":"User connected: bBA2akGaKJX_6hK0AAAC","service":"apex-backend","timestamp":"2026-05-31 13:52:13"}
+{"level":"info","message":"User connected: znEGYEzTdIzUmzINAAAD","service":"apex-backend","timestamp":"2026-05-31 13:52:14"}
+{"level":"info","message":"User connected: 5Eosqo7TBiSld-aUAAAG","service":"apex-backend","timestamp":"2026-05-31 13:52:15"}
+{"level":"info","message":"User connected: tDfhRhyX_El71oqLAAAI","service":"apex-backend","timestamp":"2026-05-31 13:52:15"}
+{"level":"info","message":"User 6a0987d4fd202f169de06fd2 joined their private room: user_6a0987d4fd202f169de06fd2","service":"apex-backend","timestamp":"2026-05-31 13:52:15"}
+{"level":"info","message":"User connected: NfwXDWi0fukrHja4AAAL","service":"apex-backend","timestamp":"2026-05-31 13:52:19"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:52:20"}
+{"level":"info","message":"Admin joined monitoring room: admin-6a1bd9ad03ab70a729986d1f","service":"apex-backend","timestamp":"2026-05-31 13:52:20"}
+{"level":"info","message":"User connected: kPPWHDwAsu_2omeMAAAO","service":"apex-backend","timestamp":"2026-05-31 13:52:21"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:52:21"}
+{"level":"info","message":"User connected: 4JpsMAZVjww1WK9GAAAR","service":"apex-backend","timestamp":"2026-05-31 13:52:23"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:52:23"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:52:29"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:52:29"}
+{"level":"info","message":"User connected: hBxSWq0pxXtxoHAsAAAU","service":"apex-backend","timestamp":"2026-05-31 13:52:29"}
+{"level":"info","message":"User connected: kT3mhtPZ_8C7Vya5AAAY","service":"apex-backend","timestamp":"2026-05-31 13:52:29"}
+{"level":"info","message":"User connected: ygEtfUh4gdUs6XMRAAAZ","service":"apex-backend","timestamp":"2026-05-31 13:52:29"}
+{"level":"info","message":"User 6a098926e178b4ded294981a joined their private room: user_6a098926e178b4ded294981a","service":"apex-backend","timestamp":"2026-05-31 13:52:29"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:52:34"}
+{"level":"info","message":"User connected: ByHJ8iAmqvn1qBdBAAAc","service":"apex-backend","timestamp":"2026-05-31 13:52:34"}
+{"level":"info","message":"Student joined exam room: 6a0a19645d474bc1f2225cdb","service":"apex-backend","timestamp":"2026-05-31 13:52:34"}
+{"level":"info","message":"User connected: 7N9WMfgwlJ30_me-AAAh","service":"apex-backend","timestamp":"2026-05-31 13:52:41"}
+{"level":"info","message":"User connected: h3ZJXHhRgJe7qIUQAAAi","service":"apex-backend","timestamp":"2026-05-31 13:52:41"}
+{"level":"info","message":"Student joined exam room: 6a0a19645d474bc1f2225cdb","service":"apex-backend","timestamp":"2026-05-31 13:52:41"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:52:41"}
+{"level":"info","message":"User connected: IuetZ868T59R2gGTAAAk","service":"apex-backend","timestamp":"2026-05-31 13:52:41"}
+{"level":"info","message":"Student joined exam room: 6a0a19645d474bc1f2225cdb","service":"apex-backend","timestamp":"2026-05-31 13:52:41"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:52:45"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:52:45"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:52:46"}
+{"level":"info","message":"User connected: 5TKdV9PstIs8urFGAAAn","service":"apex-backend","timestamp":"2026-05-31 13:52:46"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:52:55"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:52:55"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:52:55"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:52:55"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:52:55"}
+{"level":"info","message":"User disconnected","service":"apex-backend","timestamp":"2026-05-31 13:52:55"}
+{"level":"info","message":"Server running in development mode on port 5000","service":"apex-backend","timestamp":"2026-05-31 13:53:01"}

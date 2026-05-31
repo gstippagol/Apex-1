@@ -396,6 +396,13 @@ exports.startExam = async (req, res) => {
         const { examId } = req.body;
         const userId = req.user.id;
 
+        const exam = await Exam.findById(examId);
+        if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
+
+        if (exam.status !== 'Published' && exam.status !== 'Ongoing') {
+            return res.status(403).json({ success: false, message: 'This assessment is not currently active.' });
+        }
+
         let result = await Result.findOne({ userId, examId });
         
         if (result) {
@@ -412,9 +419,6 @@ exports.startExam = async (req, res) => {
             await result.save();
             return res.status(200).json({ success: true, data: result });
         }
-
-        const exam = await Exam.findById(examId);
-        if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
 
         result = await Result.create({
             userId,

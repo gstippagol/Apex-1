@@ -516,6 +516,7 @@ io.on('connection', (socket) => {
             userId: data.userId,
             snapshot: data.snapshot,
             micActivity: data.micActivity,
+            streamingBackend: data.streamingBackend,
             timestamp: Date.now()
         });
     });
@@ -530,6 +531,29 @@ io.on('connection', (socket) => {
             message: data.message,
             timestamp: Date.now()
         });
+    });
+
+    socket.on('webrtc-initiate', ({ examId, userId }) => {
+        logger.info(`Admin initiating WebRTC connection with student ${userId} for exam ${examId}`);
+        io.to(`student-${userId}`).emit('webrtc-initiate', { examId });
+    });
+
+    socket.on('webrtc-offer', ({ examId, userId, offer }) => {
+        logger.info(`Student ${userId} sending WebRTC offer for exam ${examId}`);
+        io.to(`admin-${examId}`).emit('webrtc-offer', { userId, offer });
+    });
+
+    socket.on('webrtc-answer', ({ examId, userId, answer }) => {
+        logger.info(`Admin sending WebRTC answer for student ${userId} in exam ${examId}`);
+        io.to(`student-${userId}`).emit('webrtc-answer', { answer });
+    });
+
+    socket.on('webrtc-candidate', ({ examId, userId, candidate, target }) => {
+        if (target === 'admin') {
+            io.to(`admin-${examId}`).emit('webrtc-candidate', { userId, candidate });
+        } else {
+            io.to(`student-${userId}`).emit('webrtc-candidate', { candidate });
+        }
     });
 
     socket.on('signal', (data) => {
