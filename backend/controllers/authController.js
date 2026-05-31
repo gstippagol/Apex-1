@@ -22,6 +22,14 @@ exports.sendOTP = async (req, res) => {
 
         const { email, name, usn, mobileNumber } = req.body;
 
+        const emailDomain = email.split('@')[1]?.toLowerCase() || '';
+        const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 'aol.com', 'protonmail.com', 'zoho.com', 'live.com', 'msn.com', 'ymail.com', 'googlemail.com', 'apex.com'];
+        const isEduDomain = emailDomain.endsWith('.edu') || emailDomain.endsWith('.edu.in') || emailDomain.endsWith('.ac.in');
+        
+        if (!allowedDomains.includes(emailDomain) && !isEduDomain) {
+            return res.status(400).json({ success: false, message: 'Please use a valid institution or primary email provider. Temporary emails are blocked.' });
+        }
+
         // Check for duplicates before sending OTP
         const existingEmail = await User.findOne({ email });
         if (existingEmail) return res.status(400).json({ success: false, message: 'Email already catalogued' });
@@ -100,6 +108,13 @@ exports.verifyOTP = async (req, res) => {
 
         const { name, email, password, role, department, usn, mobileNumber, otp } = req.body;
 
+        if (!password || password.length < 10 || password.length > 16 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Password must be 10-16 characters with at least one uppercase letter, one lowercase letter, and one special character.' 
+            });
+        }
+
         // Role Restriction: Self-registered users can only be registered as students
         if (role && role !== 'student') {
             return res.status(403).json({ success: false, message: 'Authorization Failure: Self-registered accounts are restricted to student roles' });
@@ -141,6 +156,15 @@ exports.verifyOTP = async (req, res) => {
 exports.forgotPassword = async (req, res) => {
     try {
         const { email } = req.body;
+
+        const emailDomain = email.split('@')[1]?.toLowerCase() || '';
+        const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 'aol.com', 'protonmail.com', 'zoho.com', 'live.com', 'msn.com', 'ymail.com', 'googlemail.com', 'apex.com'];
+        const isEduDomain = emailDomain.endsWith('.edu') || emailDomain.endsWith('.edu.in') || emailDomain.endsWith('.ac.in');
+        
+        if (!allowedDomains.includes(emailDomain) && !isEduDomain) {
+            return res.status(400).json({ success: false, message: 'Please use a valid institution or primary email provider. Temporary emails are blocked.' });
+        }
+
         const settings = await Settings.findOne();
         if (settings && settings.isEmailEnabled === false) {
             return res.status(403).json({ success: false, message: 'Email recovery services are currently offline. Please contact administrator.' });
@@ -205,6 +229,13 @@ exports.resetPassword = async (req, res) => {
     try {
         const { email, otp, newPassword } = req.body;
 
+        if (!newPassword || newPassword.length < 10 || newPassword.length > 16 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[^A-Za-z0-9]/.test(newPassword)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Password must be 10-16 characters with at least one uppercase letter, one lowercase letter, and one special character.' 
+            });
+        }
+
         // Verify OTP
         const otpRecord = await OTP.findOne({ email, otp });
         if (!otpRecord) {
@@ -238,6 +269,21 @@ exports.resetPassword = async (req, res) => {
 exports.register = async (req, res) => {
     try {
         const { name, email, password, role, department, usn, mobileNumber } = req.body;
+
+        if (!password || password.length < 10 || password.length > 16 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Password must be 10-16 characters with at least one uppercase letter, one lowercase letter, and one special character.' 
+            });
+        }
+
+        const emailDomain = email.split('@')[1]?.toLowerCase() || '';
+        const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 'aol.com', 'protonmail.com', 'zoho.com', 'live.com', 'msn.com', 'ymail.com', 'googlemail.com', 'apex.com'];
+        const isEduDomain = emailDomain.endsWith('.edu') || emailDomain.endsWith('.edu.in') || emailDomain.endsWith('.ac.in');
+        
+        if (!allowedDomains.includes(emailDomain) && !isEduDomain) {
+            return res.status(400).json({ success: false, message: 'Please use a valid institution or primary email provider. Temporary emails are blocked.' });
+        }
 
         // Check if registration is allowed (Only for self-registration, bypass for admins)
         const settings = await Settings.findOne();
@@ -408,6 +454,14 @@ exports.login = async (req, res) => {
 
         if (!email || !password) {
             return res.status(400).json({ success: false, message: 'Please provide email and password' });
+        }
+
+        const emailDomain = email.split('@')[1]?.toLowerCase() || '';
+        const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 'aol.com', 'protonmail.com', 'zoho.com', 'live.com', 'msn.com', 'ymail.com', 'googlemail.com', 'apex.com'];
+        const isEduDomain = emailDomain.endsWith('.edu') || emailDomain.endsWith('.edu.in') || emailDomain.endsWith('.ac.in');
+        
+        if (!allowedDomains.includes(emailDomain) && !isEduDomain) {
+            return res.status(400).json({ success: false, message: 'Please use a valid institution or primary email provider. Temporary emails are blocked.' });
         }
 
         const user = await User.findOne({ email }).select('+password');

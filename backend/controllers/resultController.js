@@ -190,7 +190,14 @@ exports.submitExam = async (req, res) => {
         }
 
         const io = req.app.get('io');
-        if (io) io.emit('data-updated', { type: 'result', action: 'submit' });
+        if (io) {
+            io.emit('data-updated', { type: 'result', action: 'submit' });
+            io.to(`admin-${examId}`).emit('session-submitted', {
+                resultId: result._id,
+                userId: userId.toString(),
+                status: 'Submitted'
+            });
+        }
 
         res.status(201).json({ success: true, data: result });
     } catch (err) {

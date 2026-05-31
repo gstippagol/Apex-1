@@ -517,7 +517,8 @@ io.on('connection', (socket) => {
             snapshot: data.snapshot,
             micActivity: data.micActivity,
             streamingBackend: data.streamingBackend,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            violations: data.violations
         });
     });
 
