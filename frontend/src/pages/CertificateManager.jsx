@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { io } from 'socket.io-client';
 import { useNavigate } from 'react-router-dom';
 import { Award, ChevronRight, Search, LayoutGrid, List } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
+import LoadingScreen from '../components/LoadingScreen';
 
 const CertificateManager = () => {
     const [exams, setExams] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const navigate = useNavigate();
-    const API_BASE = `http://${window.location.hostname}:5000`;
-
-    useEffect(() => {
-        fetchExams();
-    }, []);
+    const API_BASE = (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1'))
+    ? `http://${window.location.hostname}:5000`
+    : 'https://apex-s1q2.onrender.com';
 
     const fetchExams = async () => {
         try {
@@ -26,6 +26,21 @@ const CertificateManager = () => {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        fetchExams();
+    }, []);
+
+    useEffect(() => {
+        const socket = io(API_BASE);
+        socket.on('data-updated', (data) => {
+            if (data.type === 'exam') {
+                console.log('CertificateManager: Exam updated, refetching...');
+                fetchExams();
+            }
+        });
+        return () => socket.disconnect();
+    }, []);
 
     const filteredExams = exams.filter(e => 
         e.title.toLowerCase().includes(searchTerm.toLowerCase())
@@ -56,7 +71,7 @@ const CertificateManager = () => {
                 </div>
 
                 {loading ? (
-                    <div className="flex items-center justify-center py-20 text-amber-600 font-black animate-pulse">SYNCHRONIZING FORGE...</div>
+                    <LoadingScreen message="Synchronizing Forge..." dark={false} fullScreen={false} />
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {filteredExams.map(exam => (

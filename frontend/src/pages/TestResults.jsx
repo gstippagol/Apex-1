@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { io } from 'socket.io-client';
 import {
     Search, Award, ChevronDown, User as UserIcon,
     Calendar, BarChart, PieChart, Info, Eye, X,
@@ -9,6 +10,9 @@ import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import logoUniv from '../assets/LogoL.png';
+import logoMUSE from '../assets/muse_logo.png';
+import logoApex from '../assets/logo_transparent.png';
 
 const TestResults = () => {
     const [exams, setExams] = useState([]);
@@ -19,20 +23,9 @@ const TestResults = () => {
     const [isPlagiarismAnalyzing, setIsPlagiarismAnalyzing] = useState(false);
     const [plagiarismData, setPlagiarismData] = useState(null);
     const [showPlagiarismModal, setShowPlagiarismModal] = useState(false);
-    const API_BASE = `http://${window.location.hostname}:5000`;
-
-    useEffect(() => {
-        fetchExams();
-    }, []);
-
-    useEffect(() => {
-        if (selectedResult) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = 'unset';
-        }
-        return () => { document.body.style.overflow = 'unset'; };
-    }, [selectedResult]);
+    const API_BASE = (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1'))
+    ? `http://${window.location.hostname}:5000`
+    : 'https://apex-s1q2.onrender.com';
 
     const fetchExams = async () => {
         try {
@@ -56,6 +49,36 @@ const TestResults = () => {
         }
     };
 
+    useEffect(() => {
+        fetchExams();
+    }, []);
+
+    useEffect(() => {
+        if (selectedResult) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => { document.body.style.overflow = 'unset'; };
+    }, [selectedResult]);
+
+    // Socket.IO auto-update listener
+    useEffect(() => {
+        const socket = io(API_BASE);
+        socket.on('data-updated', (data) => {
+            if (data.type === 'exam' || data.type === 'result') {
+                console.log('TestResults data updated, refetching...');
+                fetchExams();
+                if (selectedExamId) {
+                    axios.get(`${API_BASE}/api/results/exam/${selectedExamId}`)
+                        .then(res => setResults(res.data.data))
+                        .catch(err => console.error('Failed to fetch updated results', err));
+                }
+            }
+        });
+        return () => socket.disconnect();
+    }, [selectedExamId]);
+
     const handleRunPlagiarismAnalysis = async () => {
         if (!selectedExamId) return toast.error('Please select an assessment first');
         setIsPlagiarismAnalyzing(true);
@@ -74,7 +97,7 @@ const TestResults = () => {
         }
     };
 
-    const handleDownloadPDF = () => {
+    const handleDownloadPDF = async () => {
         try {
             if (!selectedExamId || results.length === 0) {
                 toast.error('No results available to download');
@@ -86,22 +109,35 @@ const TestResults = () => {
             const pageWidth = doc.internal.pageSize.getWidth();
             const pageHeight = doc.internal.pageSize.getHeight();
 
-            // Helper to get image as Base64 (internal assets)
-            const getLogo = (name) => {
-                const img = new Image();
-                img.src = `/src/assets/${name}`;
-                return img;
+                        // Helper to load image as a Promise
+            const loadImg = (src) => {
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => resolve(img);
+                    img.onerror = () => resolve(null);
+                    img.src = src;
+                });
             };
 
-            const logoMUSE = getLogo('muse_logo.png');
-            const logoUniv = getLogo('LogoL.png');
-            const logoApex = getLogo('logo_transparent.png');
+            // Preload all logos
+            const [logoMUSEImg, logoUnivImg, logoApexImg] = await Promise.all([
+                loadImg(logoMUSE),
+                loadImg(logoUniv),
+                loadImg(logoApex)
+            ]);
 
             // --- 1. Institutional Header ---
             // Left Logo (University of Mysore)
-            try {
-                doc.addImage(logoUniv, 'PNG', 15, 10, 20, 20);
-            } catch (e) {
+            if (logoUnivImg) {
+                try {
+                    doc.addImage(logoUnivImg, 'PNG', 15, 10, 20, 20);
+                } catch (e) {
+                    doc.setDrawColor(200, 200, 200);
+                    doc.rect(15, 10, 20, 20);
+                    doc.setFontSize(6);
+                    doc.text("UNIVERSITY", 25, 20, { align: 'center' });
+                }
+            } else {
                 doc.setDrawColor(200, 200, 200);
                 doc.rect(15, 10, 20, 20);
                 doc.setFontSize(6);
@@ -118,10 +154,16 @@ const TestResults = () => {
             doc.setFont('helvetica', 'normal');
             doc.text("Manasagangotri Campus, Mysuru (Approved by AICTE, New Delhi)", pageWidth / 2, 21, { align: 'center' });
 
-            // Right Logo (Department/APEX) - Using MUSE Logo
-            try {
-                doc.addImage(logoMUSE, 'PNG', pageWidth - 35, 10, 20, 20);
-            } catch (e) {
+                        // Right Logo (Department/APEX) - Using MUSE Logo
+            if (logoMUSEImg) {
+                try {
+                    doc.addImage(logoMUSEImg, 'PNG', pageWidth - 35, 10, 20, 20);
+                } catch (e) {
+                    doc.rect(pageWidth - 35, 10, 20, 20);
+                    doc.setFontSize(6);
+                    doc.text("MUSE", pageWidth - 25, 20, { align: 'center' });
+                }
+            } else {
                 doc.rect(pageWidth - 35, 10, 20, 20);
                 doc.setFontSize(6);
                 doc.text("MUSE", pageWidth - 25, 20, { align: 'center' });
@@ -142,10 +184,15 @@ const TestResults = () => {
             const startX = (pageWidth - totalWidth) / 2;
 
             doc.text("APEX", startX, 48);
-            try {
-                // Centering the zoomed logo vertically relative to text
-                doc.addImage(logoApex, 'PNG', startX + apexWidth + spacing, 30, logoW, logoH);
-            } catch (e) {
+                        if (logoApexImg) {
+                try {
+                    // Centering the zoomed logo vertically relative to text
+                    doc.addImage(logoApexImg, 'PNG', startX + apexWidth + spacing, 30, logoW, logoH);
+                } catch (e) {
+                    doc.setDrawColor(218, 165, 32);
+                    doc.rect(startX + apexWidth + spacing, 30, logoW, logoH);
+                }
+            } else {
                 doc.setDrawColor(218, 165, 32);
                 doc.rect(startX + apexWidth + spacing, 30, logoW, logoH);
             }
@@ -187,7 +234,6 @@ const TestResults = () => {
                 head: [tableColumn],
                 body: tableRows,
                 theme: 'grid',
-                margin: { top: 110, bottom: 65 },
                 headStyles: {
                     fillColor: [255, 255, 255],
                     textColor: [0, 0, 0],
@@ -206,7 +252,7 @@ const TestResults = () => {
                 columnStyles: {
                     0: { halign: 'left' }
                 },
-                margin: { left: 20, right: 20 }
+                margin: { top: 30, bottom: 40, left: 20, right: 20 }
             });
 
             // --- 5. Signatories & Footer ---
@@ -279,7 +325,7 @@ const TestResults = () => {
                 body: top5TableRows,
                 theme: 'striped',
                 headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255] },
-                margin: { left: 20, right: 20 }
+                margin: { bottom: 40, left: 20, right: 20 }
             });
 
             // --- 6. Signatories (Last Page Bottom Only) ---
@@ -500,7 +546,7 @@ const TestResults = () => {
                                 exit={{ opacity: 0, scale: 0.95 }}
                                 className="fixed inset-0 z-[101] flex items-center justify-center p-4 sm:p-8"
                             >
-                                <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col">
+                                <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 max-w-5xl md:max-w-6xl w-full max-h-[95vh] overflow-hidden flex flex-col">
                                     {/* Modal Header */}
                                     <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-8 flex items-center justify-between shadow-lg relative z-10">
                                         <div>
@@ -601,17 +647,25 @@ const TestResults = () => {
                                         </div>
 
                                         {/* Violations */}
-                                        {selectedResult.violations && selectedResult.violations.length > 0 && (
-                                            <div className="bg-rose-50 rounded-2xl p-6 border border-rose-200">
-                                                <p className="text-xs font-black text-rose-600 uppercase tracking-widest mb-4">⚠️ Violations Detected</p>
-                                                <ul className="space-y-2">
-                                                    {selectedResult.violations.map((v, i) => (
-                                                        <li key={i} className="text-sm font-bold text-rose-700 flex items-start gap-2">
-                                                            <span className="text-rose-500 mt-1">•</span>
-                                                            <span>{v.type}: {v.details}</span>
-                                                        </li>
-                                                    ))}
-                                                </ul>
+                                        {selectedResult.violations && (selectedResult.violations.tabSwitches > 0 || selectedResult.violations.fullscreenExits > 0 || selectedResult.violations.aiViolations > 0) && (
+                                            <div className="bg-rose-50/50 rounded-2xl p-6 border border-rose-100">
+                                                <p className="text-xs font-black text-rose-500 uppercase tracking-widest mb-4">⚠️ Proctoring Violations</p>
+                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                                    <div className="bg-white p-4 rounded-xl border border-rose-100 flex flex-col items-center justify-center text-center shadow-sm">
+                                                        <span className="text-2xl font-black text-rose-600">{selectedResult.violations.tabSwitches || 0}</span>
+                                                        <span className="text-[9px] font-black uppercase text-slate-500 mt-1">Tab Switches</span>
+                                                    </div>
+                                                    <div className="bg-white p-4 rounded-xl border border-rose-100 flex flex-col items-center justify-center text-center shadow-sm">
+                                                        <span className="text-2xl font-black text-rose-600">{selectedResult.violations.fullscreenExits || 0}</span>
+                                                        <span className="text-[9px] font-black uppercase text-slate-500 mt-1">Fullscreen Exits</span>
+                                                    </div>
+                                                    {exams.find(e => e._id === selectedExamId)?.proctoring?.camera && (
+                                                        <div className="bg-white p-4 rounded-xl border border-rose-100 flex flex-col items-center justify-center text-center shadow-sm">
+                                                            <span className="text-2xl font-black text-rose-600">{selectedResult.violations.aiViolations || 0}</span>
+                                                            <span className="text-[9px] font-black uppercase text-slate-500 mt-1">Camera Violations</span>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         )}
                                     </div>
@@ -637,7 +691,7 @@ const TestResults = () => {
                                 exit={{ opacity: 0, y: 50 }}
                                 className="fixed inset-0 z-[201] flex items-center justify-center p-4"
                             >
-                                <div className="bg-white rounded-[2rem] sm:rounded-[3rem] shadow-2xl border border-slate-100 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                                <div className="bg-white rounded-[2rem] sm:rounded-[3rem] shadow-2xl border border-slate-100 max-w-5xl md:max-w-6xl w-full max-h-[95vh] overflow-hidden flex flex-col">
                                     <div className="p-6 sm:p-8 bg-rose-600 text-white flex items-center justify-between">
                                         <div className="flex items-center gap-4">
                                             <div className="p-2 sm:p-3 bg-white/20 rounded-xl sm:rounded-2xl shrink-0">

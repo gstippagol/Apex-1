@@ -24,12 +24,20 @@ exports.bulkRegister = async (req, res) => {
                 const name = row.name || row.Name;
                 const usn = row.usn || row.USN || row.registerNumber;
                 
-                // Custom Password Logic: FirstLetterCapsName + Last5DigitsOfUSN + @apex
+                // Custom Password Logic: Name (first 5 letters) + Mobile last 4 digits + @apex
+                const rawMobile = row.mobileNumber || row.Mobile || row.Phone || '';
+                let formattedMobile = rawMobile.toString().trim();
+                if (formattedMobile && !formattedMobile.startsWith('+91')) {
+                    formattedMobile = `+91${formattedMobile}`;
+                }
+
                 let defaultPassword = 'Apex@123';
-                if (name && usn) {
-                    const formattedName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase().split(' ')[0];
-                    const usnLast5 = usn.toString().slice(-5);
-                    defaultPassword = `${formattedName}${usnLast5}@apex`;
+                if (name && formattedMobile) {
+                    const firstName = name.trim().split(' ')[0];
+                    const formattedName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+                    const slicedName = formattedName.slice(0, 5);
+                    const last4Mobile = formattedMobile.length >= 4 ? formattedMobile.slice(-4) : '';
+                    defaultPassword = `${slicedName}${last4Mobile}@apex`;
                 }
 
                 const userData = {
@@ -38,18 +46,13 @@ exports.bulkRegister = async (req, res) => {
                     password: row.password || row.Password || defaultPassword,
                     department: row.department || row.Department,
                     usn: usn,
-                    mobileNumber: row.mobileNumber || row.Mobile || row.Phone,
+                    mobileNumber: formattedMobile,
                     role: 'student'
                 };
 
                 // Basic validation
                 if (!userData.name || !userData.email || !userData.usn || !userData.mobileNumber || !userData.department) {
                     throw new Error(`Missing required fields for ${userData.email || 'unknown user'}`);
-                }
-
-                // Ensure mobile number has +91
-                if (userData.mobileNumber && !userData.mobileNumber.toString().startsWith('+91')) {
-                    userData.mobileNumber = `+91${userData.mobileNumber}`;
                 }
 
                 await User.create(userData);

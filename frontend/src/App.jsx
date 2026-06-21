@@ -51,10 +51,9 @@ function App() {
               <StudentDashboard />
             </ProtectedRoute>
           } />
-          
           <Route path="/admin/evaluate" element={
             <ProtectedRoute role="admin">
-              <EvaluationPage />
+              <Navigate to="/admin?tab=evaluate" replace />
             </ProtectedRoute>
           } />
 

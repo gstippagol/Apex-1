@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import ConfirmModal from '../components/ConfirmModal';
+import LoadingScreen from '../components/LoadingScreen';
 
 const ResourcesTab = () => {
     const [resources, setResources] = useState([]);
@@ -13,7 +15,32 @@ const ResourcesTab = () => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [viewingResource, setViewingResource] = useState(null);
     const [form, setForm] = useState({ title: '', link: '', type: 'Link', category: 'General' });
-    const API_BASE = `http://${window.location.hostname}:5000`;
+
+    const [confirmModal, setConfirmModal] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: null,
+        confirmText: 'Confirm',
+        type: 'danger'
+    });
+
+    const triggerConfirm = ({ title, message, onConfirm, confirmText = 'Confirm', type = 'danger' }) => {
+        setConfirmModal({
+            isOpen: true,
+            title,
+            message,
+            onConfirm: () => {
+                onConfirm();
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+            },
+            confirmText,
+            type
+        });
+    };
+    const API_BASE = (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1'))
+    ? `http://${window.location.hostname}:5000`
+    : 'https://apex-s1q2.onrender.com';
 
     useEffect(() => {
         fetchResources();
@@ -43,15 +70,21 @@ const ResourcesTab = () => {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Erase this record?')) return;
-        try {
-            await axios.delete(`${API_BASE}/api/resources/${id}`);
-            toast.success('Resource eliminated');
-            fetchResources();
-        } catch (err) {
-            toast.error('Deletion failed');
-        }
+    const handleDelete = async (id, resourceTitle = 'this resource') => {
+        triggerConfirm({
+            title: 'Erase Academic Record',
+            message: `Are you sure you want to permanently erase "${resourceTitle}" from the library? This action is irreversible.`,
+            confirmText: 'Erase Resource',
+            onConfirm: async () => {
+                try {
+                    await axios.delete(`${API_BASE}/api/resources/${id}`);
+                    toast.success('Resource eliminated');
+                    fetchResources();
+                } catch (err) {
+                    toast.error('Deletion failed');
+                }
+            }
+        });
     };
 
     const getEmbedLink = (url) => {
@@ -101,7 +134,7 @@ const ResourcesTab = () => {
             </div>
 
             {loading ? (
-                <div className="py-20 text-center animate-pulse font-black text-slate-300 uppercase tracking-[0.2em]">Synchronising Repository...</div>
+                <LoadingScreen message="Synchronizing Repository..." dark={false} fullScreen={false} />
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {resources.map(r => (
@@ -112,7 +145,7 @@ const ResourcesTab = () => {
                                 </div>
                                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button onClick={() => setViewingResource(r)} className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"><Eye size={18} /></button>
-                                    <button onClick={() => handleDelete(r._id)} className="p-2 hover:bg-rose-50 text-rose-600 rounded-lg transition-colors"><Trash2 size={18} /></button>
+                                    <button onClick={() => handleDelete(r._id, r.title)} className="p-2 hover:bg-rose-50 text-rose-600 rounded-lg transition-colors"><Trash2 size={18} /></button>
                                 </div>
                             </div>
                             <h4 className="text-lg font-black text-slate-800 mb-1 truncate">{r.title}</h4>
@@ -204,6 +237,16 @@ const ResourcesTab = () => {
                     </div>
                 )}
             </AnimatePresence>
+            {/* Premium Custom Confirmation Overlay */}
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                onConfirm={confirmModal.onConfirm}
+                onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                confirmText={confirmModal.confirmText}
+                type={confirmModal.type}
+            />
         </div>
     );
 };

@@ -37,7 +37,7 @@ exports.createNotice = async (req, res) => {
 
         if (emailList.length > 0) {
             try {
-                const platformUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+                const platformUrl = process.env.FRONTEND_URL || 'https://apexclub-muse.netlify.app';
                 await sendEmail({
                     bcc: emailList, // Use BCC to hide emails from other recipients
                     subject: `[OFFICIAL CIRCULAR] ${notice.title}`,
@@ -54,11 +54,17 @@ exports.createNotice = async (req, res) => {
                                     <p style="white-space: pre-wrap; font-size: 16px; margin: 0; color: #334155;">${notice.content}</p>
                                 </div>
                                 
-                                <div style="text-align: center; margin: 40px 0;">
-                                    <a href="${platformUrl}" style="background: #3b82f6; color: white; padding: 16px 32px; border-radius: 16px; text-decoration: none; font-weight: 700; font-size: 16px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.5);">
-                                        Visit Platform
-                                    </a>
-                                </div>
+                                <table border="0" cellpadding="0" cellspacing="0" style="margin: 40px auto 0 auto; text-align: center;">
+                                    <tr>
+                                        <td align="center" bgcolor="#3b82f6" style="border-radius: 16px;">
+                                            <a href="${platformUrl}" 
+                                               target="_blank"
+                                               style="font-size: 16px; font-family: sans-serif; color: #ffffff; text-decoration: none; border-radius: 16px; padding: 16px 32px; border: 1px solid #3b82f6; display: inline-block; font-weight: 700; background-color: #3b82f6; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.5);">
+                                                Visit Platform
+                                            </a>
+                                        </td>
+                                    </tr>
+                                </table>
                             </div>
                             
                             <div style="margin-top: 50px; padding: 30px 10px 0; border-top: 1px solid #e2e8f0; font-size: 13px; color: #94a3b8; text-align: center;">

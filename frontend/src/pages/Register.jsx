@@ -29,23 +29,89 @@ const Register = () => {
         }
     }, [settings, navigate]);
 
+    useEffect(() => {
+        const handleSecurity = (e) => {
+            e.preventDefault();
+        };
+
+        const handleKeyDown = (e) => {
+            if (e.keyCode === 123 || // F12
+                (e.ctrlKey && e.shiftKey && e.keyCode === 73) || // Ctrl+Shift+I
+                (e.ctrlKey && e.shiftKey && e.keyCode === 74) || // Ctrl+Shift+J
+                (e.ctrlKey && e.shiftKey && e.keyCode === 67) || // Ctrl+Shift+C
+                (e.ctrlKey && e.keyCode === 85)) {               // Ctrl+U
+                e.preventDefault();
+            }
+        };
+
+        const blockDevTools = setInterval(() => {
+            Function("debugger")();
+        }, 50);
+
+        document.addEventListener('copy', handleSecurity);
+        document.addEventListener('paste', handleSecurity);
+        document.addEventListener('cut', handleSecurity);
+        document.addEventListener('contextmenu', handleSecurity);
+        document.addEventListener('keydown', handleKeyDown);
+
+        return () => {
+            clearInterval(blockDevTools);
+            document.removeEventListener('copy', handleSecurity);
+            document.removeEventListener('paste', handleSecurity);
+            document.removeEventListener('cut', handleSecurity);
+            document.removeEventListener('contextmenu', handleSecurity);
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, []);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (formData.password !== formData.confirmPassword) {
             return toast.error('Passwords do not match');
+        }
+
+        const emailDomain = formData.email.split('@')[1]?.toLowerCase() || '';
+        const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 'aol.com', 'protonmail.com', 'zoho.com', 'live.com', 'msn.com', 'ymail.com', 'googlemail.com', 'apex.com'];
+        const isEduDomain = emailDomain.endsWith('.edu') || emailDomain.endsWith('.edu.in') || emailDomain.endsWith('.ac.in');
+
+        if (!allowedDomains.includes(emailDomain) && !isEduDomain) {
+            return toast.error('Please use a valid institution or primary email provider. Temporary emails are strictly blocked.');
+        }
+
+        // Password strength validation
+        const password = formData.password;
+        if (password.length < 10 || password.length > 16) {
+            return toast.error('Password must be between 10 and 16 characters long');
+        }
+        if (!/[A-Z]/.test(password)) {
+            return toast.error('Password must contain at least one uppercase letter');
+        }
+        if (!/[a-z]/.test(password)) {
+            return toast.error('Password must contain at least one lowercase letter');
+        }
+        if (!/[^A-Za-z0-9]/.test(password)) {
+            return toast.error('Password must contain at least one special character');
         }
         if (formData.mobileNumber.length !== 13) {
             return toast.error('Mobile number must be exactly 10 digits with +91');
         }
         setLoading(true);
         try {
-            const res = await sendOTP(formData);
-            if (res.success) {
-                toast.success('Verification code dispatched to your email');
-                setStep(2);
+            if (settings?.isEmailEnabled === false) {
+                const res = await register(formData);
+                if (res.success) {
+                    toast.success('Registration successful! Welcome to APEX.');
+                    navigate(formData.role === 'admin' ? '/admin' : '/student');
+                }
+            } else {
+                const res = await sendOTP(formData);
+                if (res.success) {
+                    toast.success('Verification code dispatched to your email');
+                    setStep(2);
+                }
             }
         } catch (err) {
-            toast.error(err.response?.data?.message || 'Failed to dispatch verification code');
+            toast.error(err.response?.data?.message || (settings?.isEmailEnabled === false ? 'Failed to complete registration' : 'Failed to dispatch verification code'));
         } finally {
             setLoading(false);
         }
@@ -54,7 +120,7 @@ const Register = () => {
     const handleVerifyOTP = async (e) => {
         e.preventDefault();
         if (otp.length !== 6) return toast.error('Please enter a valid 6-digit code');
-        
+
         setLoading(true);
         try {
             const res = await verifyOTP({ ...formData, otp });
@@ -83,8 +149,8 @@ const Register = () => {
             >
                 <div className="text-center mb-8">
                     <div className="flex justify-center mb-6">
-                        <div className="w-16 h-16 bg-slate-50 p-2 rounded-2xl border border-slate-100 shadow-inner">
-                            <img src={logo} alt="APEX" className="w-full h-full object-contain" />
+                        <div className="w-24 h-24 bg-slate-50 p-2 rounded-2xl border border-slate-100 shadow-inner">
+                            <img src={logo} alt="APEX" className="w-full h-full object-contain scale-110" />
                         </div>
                     </div>
                     <h2 className="text-3xl font-bold mb-2">{step === 1 ? 'Create Account' : 'Verify Identity'}</h2>
@@ -196,6 +262,8 @@ const Register = () => {
                                         <input
                                             type="password"
                                             required
+                                            minLength={10}
+                                            maxLength={16}
                                             className="w-full text-sm pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-bold"
                                             placeholder="••••••••"
                                             value={formData.password}
@@ -211,6 +279,8 @@ const Register = () => {
                                         <input
                                             type="password"
                                             required
+                                            minLength={10}
+                                            maxLength={16}
                                             className="w-full text-sm pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-bold"
                                             placeholder="••••••••"
                                             value={formData.confirmPassword}
@@ -226,9 +296,15 @@ const Register = () => {
                                 className="w-full bg-blue-600 text-white py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-2"
                             >
                                 {loading ? <Loader2 className="animate-spin" size={18} /> : (
-                                    <>
-                                        Get Verification Code <ChevronRight size={18} />
-                                    </>
+                                    settings?.isEmailEnabled === false ? (
+                                        <>
+                                            Complete Registration <ChevronRight size={18} />
+                                        </>
+                                    ) : (
+                                        <>
+                                            Get Verification Code <ChevronRight size={18} />
+                                        </>
+                                    )
                                 )}
                             </button>
                         </motion.form>

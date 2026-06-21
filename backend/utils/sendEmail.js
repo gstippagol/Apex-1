@@ -1,6 +1,13 @@
 const nodemailer = require('nodemailer');
 
 const sendEmail = async (options) => {
+  const Settings = require('../models/Settings');
+  const settings = await Settings.findOne();
+  if (settings && settings.isEmailEnabled === false) {
+    console.log('Email services are globally disabled in Settings. Skipping email to:', options.email || options.to);
+    return { skipped: true };
+  }
+
   const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST || process.env.SMTP_HOST,
     port: process.env.EMAIL_PORT || process.env.SMTP_PORT,

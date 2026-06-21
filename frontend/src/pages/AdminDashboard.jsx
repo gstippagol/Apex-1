@@ -6,7 +6,7 @@ import {
     Plus, List, Users, LayoutDashboard, Database, FileText,
     Search, ChevronRight, Clock, ShieldCheck, Award, Rocket,
     Edit, Trash2, Power, Settings, UserMinus, ShieldAlert, BarChart3,
-    CheckCircle, UserX, UserPlus, Book, Calendar, Trash, BookOpen, X, Activity, Monitor, Zap, ArrowUpDown, FileDown, Bell, MessageSquarePlus, Upload, FileSpreadsheet, Info, Eye, EyeOff
+    CheckCircle, UserX, UserPlus, Book, Calendar, Trash, BookOpen, X, Activity, Monitor, Zap, ArrowUpDown, FileDown, Bell, MessageSquare, MessageSquarePlus, Upload, FileSpreadsheet, Info, Eye, EyeOff, Mail
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
@@ -14,9 +14,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { io } from 'socket.io-client';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import EvaluationPage from './EvaluationPage';
+import EvaluationTab from '../components/admin/EvaluationTab';
+import ConfirmModal from '../components/ConfirmModal';
 
 import logo from '../assets/logo_transparent.png';
+import logoUniv from '../assets/LogoL.png';
+import logoMUSE from '../assets/muse_logo.png';
 import TestResults from './TestResults';
 import ResourcesTab from './ResourcesTab';
 import QuizzesTab from '../components/admin/QuizzesTab';
@@ -50,28 +53,129 @@ const StatusBadge = ({ status }) => {
     );
 };
 
+const SidebarLink = ({ id, icon: Icon, label, activeTab, sidebarRef, navigate }) => (
+    <button
+        onClick={() => {
+            if (sidebarRef.current) {
+                sessionStorage.setItem('sidebar_scroll', sidebarRef.current.scrollTop);
+            }
+            navigate(`/admin?tab=${id}`, { replace: true });
+            window.scrollTo(0, 0);
+        }}
+        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors duration-200 ${activeTab === id ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+            }`}
+        style={{ height: '48px' }}
+    >
+        <Icon size={20} className="shrink-0" />
+        <span className="hidden md:inline truncate">{label}</span>
+    </button>
+);
+
+const MobileTabButton = ({ id, icon: Icon, label, onClick, activeTab, navigate, setIsMoreMenuOpen }) => (
+    <button
+        onClick={onClick || (() => {
+            navigate(`/admin?tab=${id}`, { replace: true });
+            window.scrollTo(0, 0);
+            setIsMoreMenuOpen(false);
+        })}
+        className={`flex flex-col items-center gap-1 p-2 flex-1 transition-colors duration-200 ${activeTab === id ? 'text-blue-600' : 'text-slate-400'
+            }`}
+    >
+        <div className={`p-1.5 rounded-xl transition-colors duration-200 ${activeTab === id ? 'bg-blue-50' : ''}`}>
+            <Icon size={20} className="shrink-0" />
+        </div>
+        <span className="text-[9px] font-black uppercase tracking-tighter truncate">{label}</span>
+    </button>
+);
+
 const AdminDashboard = () => {
     const navigate = useNavigate();
     const socketRef = useRef(null);
+    const sidebarRef = useRef(null);
+    const adminPeerConnectionRef = useRef(null);
+    const jitsiAdminApiRef = useRef(null);
 
-    const API_BASE = (window.location.hostname.includes('loca.lt') || window.location.hostname.includes('trycloudflare.com'))
-        ? 'https://green-ears-first-donated.trycloudflare.com'
-        : `http://${window.location.hostname}:5000`;
+    const getStreamingBackend = (uid) => {
+        if (!uid) return 'webrtc';
+        let hash = 0;
+        for (let i = 0; i < uid.length; i++) {
+            hash = uid.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const index = Math.abs(hash) % 3;
+        const backends = ['webrtc', 'livekit', 'jitsi'];
+        return backends[index];
+    };
+
+    const loadJitsiScript = () => {
+        return new Promise((resolve) => {
+            if (window.JitsiMeetExternalAPI) {
+                resolve(true);
+                return;
+            }
+            const script = document.createElement('script');
+            script.src = 'https://meet.element.io/external_api.js';
+            script.async = true;
+            script.onload = () => resolve(true);
+            document.body.appendChild(script);
+        });
+    };
+
+    const [confirmModal, setConfirmModal] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: null,
+        confirmText: 'Confirm',
+        type: 'danger'
+    });
+
+    const triggerConfirm = ({ title, message, onConfirm, confirmText = 'Confirm', type = 'danger' }) => {
+        setConfirmModal({
+            isOpen: true,
+            title,
+            message,
+            onConfirm: () => {
+                onConfirm();
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+            },
+            confirmText,
+            type
+        });
+    };
+
+    const API_BASE = (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1'))
+        ? `http://${window.location.hostname}:5000`
+        : 'https://apex-s1q2.onrender.com';
 
     // Read initial tab from URL or default to overview
     const [searchParams] = useSearchParams();
-    const activeTabParam = searchParams.get('tab') || 'overview';
-    const [activeTab, setActiveTab] = useState(activeTabParam);
+    const activeTab = searchParams.get('tab') || 'overview';
 
+    // Restore sidebar scroll position on tab change
     useEffect(() => {
-        setActiveTab(activeTabParam);
-    }, [activeTabParam]);
+        const savedScroll = sessionStorage.getItem('sidebar_scroll');
+        if (savedScroll && sidebarRef.current) {
+            const timer = setTimeout(() => {
+                if (sidebarRef.current) {
+                    sidebarRef.current.scrollTop = parseInt(savedScroll, 10);
+                }
+            }, 50);
+            return () => clearTimeout(timer);
+        }
+    }, [activeTab]);
     const [exams, setExams] = useState([]);
     const [results, setResults] = useState([]);
     const [activeSessions, setActiveSessions] = useState([]);
     const [selectedSession, setSelectedSession] = useState(null);
+    const selectedSessionRef = useRef(selectedSession);
+    useEffect(() => {
+        selectedSessionRef.current = selectedSession;
+    }, [selectedSession]);
+    const [socketConnected, setSocketConnected] = useState(false);
     const [showSuspendModal, setShowSuspendModal] = useState(false);
     const [suspensionReason, setSuspensionReason] = useState('');
+    const [showMessageModal, setShowMessageModal] = useState(false);
+    const [messageText, setMessageText] = useState('');
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedUser, setSelectedUser] = useState(null); // Full detail object
@@ -91,6 +195,10 @@ const AdminDashboard = () => {
     const [bulkFile, setBulkFile] = useState(null);
     const [isBulkUploading, setIsBulkUploading] = useState(false);
     const [isSuspiciousOnly, setIsSuspiciousOnly] = useState(false);
+    const [feedbacks, setFeedbacks] = useState([]);
+    const [feedbackSearch, setFeedbackSearch] = useState('');
+    const [feedbackFilter, setFeedbackFilter] = useState('');
+    const [selectedFeedback, setSelectedFeedback] = useState(null);
 
     const handleSort = (key) => {
         let direction = 'asc';
@@ -100,7 +208,7 @@ const AdminDashboard = () => {
         setSortConfig({ key, direction });
     };
 
-    const handleExportRegistryPDF = () => {
+    const handleExportRegistryPDF = async () => {
         try {
             const studentList = users.filter(u => u.role === 'student');
             if (studentList.length === 0) {
@@ -112,21 +220,44 @@ const AdminDashboard = () => {
             const pageWidth = doc.internal.pageSize.getWidth();
             const pageHeight = doc.internal.pageSize.getHeight();
 
-            // Asset definitions
-            const getLogo = (name) => {
-                const img = new Image();
-                img.src = `/src/assets/${name}`;
-                return img;
+            // Helper to load image as a Promise
+            const loadImg = (src) => {
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.crossOrigin = "Anonymous";
+                    img.onload = () => {
+                        try {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0);
+                            resolve(canvas.toDataURL('image/png'));
+                        } catch (e) {
+                            resolve(img);
+                        }
+                    };
+                    img.onerror = () => resolve(null);
+                    img.src = src;
+                });
             };
 
-            const logoMUSE = getLogo('muse_logo.png');
-            const logoUniv = getLogo('LogoL.png');
-            const logoApex = getLogo('logo_transparent.png');
+            // Preload all logos
+            const [logoMUSEImg, logoUnivImg, logoApexImg] = await Promise.all([
+                loadImg(logoMUSE),
+                loadImg(logoUniv),
+                loadImg(logo)
+            ]);
 
             // --- 1. Institutional Header ---
-            try {
-                doc.addImage(logoUniv, 'PNG', 15, 10, 20, 20);
-            } catch (e) {
+            if (logoUnivImg) {
+                try {
+                    doc.addImage(logoUnivImg, 'PNG', 15, 10, 20, 20);
+                } catch (e) {
+                    doc.setDrawColor(200, 200, 200);
+                    doc.rect(15, 10, 20, 20);
+                }
+            } else {
                 doc.setDrawColor(200, 200, 200);
                 doc.rect(15, 10, 20, 20);
             }
@@ -140,9 +271,13 @@ const AdminDashboard = () => {
             doc.setFont('helvetica', 'normal');
             doc.text("Manasagangotri Campus, Mysuru (Approved by AICTE, New Delhi)", pageWidth / 2, 21, { align: 'center' });
 
-            try {
-                doc.addImage(logoMUSE, 'PNG', pageWidth - 35, 10, 20, 20);
-            } catch (e) {
+            if (logoMUSEImg) {
+                try {
+                    doc.addImage(logoMUSEImg, 'PNG', pageWidth - 35, 10, 20, 20);
+                } catch (e) {
+                    doc.rect(pageWidth - 35, 10, 20, 20);
+                }
+            } else {
                 doc.rect(pageWidth - 35, 10, 20, 20);
             }
 
@@ -160,9 +295,11 @@ const AdminDashboard = () => {
             const startX = (pageWidth - totalWidth) / 2;
 
             doc.text("APEX", startX, 48);
-            try {
-                doc.addImage(logoApex, 'PNG', startX + apexWidth + spacing, 30, logoW, logoH);
-            } catch (e) { }
+            if (logoApexImg) {
+                try {
+                    doc.addImage(logoApexImg, 'PNG', startX + apexWidth + spacing, 30, logoW, logoH);
+                } catch (e) { }
+            }
             doc.text("CLUB", startX + apexWidth + logoW + (spacing * 2), 48);
 
             doc.setFontSize(16);
@@ -212,7 +349,7 @@ const AdminDashboard = () => {
                     0: { halign: 'left', cellWidth: 40 },
                     3: { halign: 'left', cellWidth: 50 }
                 },
-                margin: { left: 20, right: 20 }
+                margin: { top: 30, bottom: 40, left: 20, right: 20 }
             });
 
             // --- 4. Footer ---
@@ -298,29 +435,27 @@ const AdminDashboard = () => {
 
     // Auto-generate password for Add User
     useEffect(() => {
-        if (addUserForm.name && addUserForm.usn && addUserForm.usn.length >= 5) {
+        if (addUserForm.name && addUserForm.mobileNumber && addUserForm.mobileNumber.length >= 7) {
             const firstName = addUserForm.name.trim().split(' ')[0];
             const formattedName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
-            const usnLast5 = addUserForm.usn.slice(-5);
-            setAddUserForm(prev => ({ ...prev, password: `${formattedName}${usnLast5}@apex` }));
+            const slicedName = formattedName.slice(0, 5);
+            const last4Mobile = addUserForm.mobileNumber.slice(-4);
+            setAddUserForm(prev => ({ ...prev, password: `${slicedName}${last4Mobile}@apex` }));
         }
-    }, [addUserForm.name, addUserForm.usn]);
+    }, [addUserForm.name, addUserForm.mobileNumber]);
 
-    // Auto-generate password for Edit User (only if name/usn changes and password was empty or previously auto-generated)
+    // Auto-generate password for Edit User (only if name/mobileNumber changes and password was empty)
     useEffect(() => {
-        if (editMode && editForm.name && editForm.usn && editForm.usn.length >= 5) {
-             // For edit mode, we only auto-suggest if the admin hasn't manually typed a custom password
-             // but usually for edit we might want to keep it blank unless requested.
-             // User asked for "after entering password will automatically generate below" which usually implies the ADD form.
-             // I'll keep it primarily for ADD form but if they change USN/Name in EDIT and password is blank, I'll suggest it.
-             if (!editForm.password) {
+        if (editMode && editForm.name && editForm.mobileNumber && editForm.mobileNumber.length >= 7) {
+            if (!editForm.password) {
                 const firstName = editForm.name.trim().split(' ')[0];
                 const formattedName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
-                const usnLast5 = editForm.usn.slice(-5);
-                setEditForm(prev => ({ ...prev, password: `${formattedName}${usnLast5}@apex` }));
-             }
+                const slicedName = formattedName.slice(0, 5);
+                const last4Mobile = editForm.mobileNumber.slice(-4);
+                setEditForm(prev => ({ ...prev, password: `${slicedName}${last4Mobile}@apex` }));
+            }
         }
-    }, [editForm.name, editForm.usn, editMode]);
+    }, [editForm.name, editForm.mobileNumber, editMode]);
 
     const fetchNotices = async () => {
         try {
@@ -372,17 +507,23 @@ const AdminDashboard = () => {
         }
     };
 
-    const handleDeleteNotice = async (id) => {
-        if (!window.confirm('Erase this broadcast from protocol?')) return;
-        try {
-            const res = await axios.delete(`${API_BASE}/api/notices/${id}`);
-            if (res.data.success) {
-                toast.success('Broadcast terminated');
-                fetchNotices();
+    const handleDeleteNotice = async (id, noticeTitle = 'this broadcast') => {
+        triggerConfirm({
+            title: 'Terminate Broadcast',
+            message: `Are you sure you want to permanently erase "${noticeTitle}"? This action cannot be undone.`,
+            confirmText: 'Erase Broadcast',
+            onConfirm: async () => {
+                try {
+                    const res = await axios.delete(`${API_BASE}/api/notices/${id}`);
+                    if (res.data.success) {
+                        toast.success('Broadcast terminated');
+                        fetchNotices();
+                    }
+                } catch (err) {
+                    toast.error(err.response?.data?.message || 'Deletion failed');
+                }
             }
-        } catch (err) {
-            toast.error(err.response?.data?.message || 'Deletion failed');
-        }
+        });
     };
 
     const calculateRanks = (allResults, allUsers) => {
@@ -423,7 +564,7 @@ const AdminDashboard = () => {
         try {
             const token = localStorage.getItem('token');
             const res = await axios.post(`${API_BASE}/api/auth/bulk-register`, formData, {
-                headers: { 
+                headers: {
                     'Content-Type': 'multipart/form-data',
                     'Authorization': `Bearer ${token}`
                 }
@@ -473,21 +614,66 @@ const AdminDashboard = () => {
         });
         socketRef.current = socket;
 
+        socket.on('connect', () => {
+            setSocketConnected(true);
+        });
+
+        socket.on('disconnect', () => {
+            setSocketConnected(false);
+        });
+
+        // Map to throttle state updates per user
+        const lastStateUpdates = new Map();
+
         socket.on('live-update', (data) => {
-            setActiveSessions(prev => {
-                const index = prev.findIndex(s => (s.userId?._id || s.userId) === data.userId);
-                if (index !== -1) {
-                    const newSessions = [...prev];
-                    newSessions[index] = {
-                        ...newSessions[index],
-                        liveSnapshot: data.snapshot,
-                        micActivity: data.micActivity,
-                        lastActive: data.timestamp
-                    };
-                    return newSessions;
+            // High-frequency direct DOM manipulation to bypass React state bottlenecks
+            const imgEl = document.getElementById('live-stream-img');
+            if (imgEl && imgEl.dataset.userid === data.userId && data.snapshot) {
+                imgEl.src = data.snapshot;
+                imgEl.style.display = 'block';
+                const placeholder = document.getElementById('live-stream-placeholder');
+                if (placeholder) placeholder.style.display = 'none';
+            }
+
+            const micEl = document.getElementById('live-stream-mic');
+            if (micEl && micEl.dataset.userid === data.userId && data.micActivity !== undefined) {
+                micEl.style.width = `${Math.min(100, data.micActivity)}%`;
+                micEl.className = `h-full transition-all duration-300 ${data.micActivity > 60 ? 'bg-rose-500' : 'bg-green-500'}`;
+            }
+
+            // Throttle React state updates to once every 1 second per student to prevent CPU lockup
+            const last = lastStateUpdates.get(data.userId) || 0;
+            if (Date.now() - last > 1000) {
+                lastStateUpdates.set(data.userId, Date.now());
+                setActiveSessions(prev => {
+                    const index = prev.findIndex(s => (s.userId?._id || s.userId) === data.userId);
+                    if (index !== -1) {
+                        const newSessions = [...prev];
+                        newSessions[index] = {
+                            ...newSessions[index],
+                            liveSnapshot: data.snapshot !== undefined ? data.snapshot : newSessions[index].liveSnapshot,
+                            micActivity: data.micActivity !== undefined ? data.micActivity : newSessions[index].micActivity,
+                            streamingBackend: data.streamingBackend !== undefined ? data.streamingBackend : newSessions[index].streamingBackend,
+                            lastActive: data.timestamp || Date.now(),
+                            violations: data.violations !== undefined ? data.violations : newSessions[index].violations
+                        };
+                        return newSessions;
+                    }
+                    return prev;
+                });
+            }
+        });
+
+        socket.on('session-submitted', (data) => {
+            console.log("Session submitted via socket:", data);
+            const currentSelected = selectedSessionRef.current;
+            if (currentSelected) {
+                const sessionUserId = currentSelected.userId?._id || currentSelected.userId;
+                if (String(currentSelected._id) === String(data.resultId) || String(sessionUserId) === String(data.userId)) {
+                    setSelectedSession(null);
+                    toast.success('This student has submitted the exam.');
                 }
-                return prev;
-            });
+            }
         });
 
         socket.on('data-updated', (data) => {
@@ -498,22 +684,76 @@ const AdminDashboard = () => {
         return () => socket.disconnect();
     }, []); // Only connect once on mount
 
-    // Separate effect to join rooms when exams change
+    // Separate effect to join rooms when exams change or socket connects
     useEffect(() => {
-        if (socketRef.current && socketRef.current.connected && exams.length > 0) {
+        if (socketRef.current && socketConnected && exams.length > 0) {
             exams.forEach(e => {
                 socketRef.current.emit('join-exam', { examId: e._id, role: 'admin' });
             });
         }
-    }, [exams]);
+    }, [exams, socketConnected]);
+
+    // Join room for the currently selected session's exam to ensure we receive submitted events
+    useEffect(() => {
+        if (socketRef.current && socketConnected && selectedSession) {
+            const eId = selectedSession.examId?._id || selectedSession.examId;
+            if (eId) {
+                console.log("Admin joining room for selected session:", eId);
+                socketRef.current.emit('join-exam', { examId: eId, role: 'admin' });
+            }
+        }
+    }, [selectedSession, socketConnected]);
 
     // Update selectedSession from activeSessions
     useEffect(() => {
         if (selectedSession) {
             const updated = activeSessions.find(s => s._id === selectedSession._id);
-            if (updated) setSelectedSession(updated);
+            if (updated) {
+                setSelectedSession(updated);
+            } else {
+                // Student session is no longer in activeSessions.
+                // Fetch the latest result document to see if they actually submitted the exam.
+                const checkSubmissionStatus = async () => {
+                    try {
+                        const targetId = selectedSession._id;
+                        const res = await axios.get(`${API_BASE}/api/results/${targetId}`);
+                        if (res.data.success && res.data.data) {
+                            const currentStatus = res.data.data.status;
+                            if (currentStatus === 'Submitted') {
+                                setSelectedSession(prev => (prev && prev._id === targetId) ? null : prev);
+                                toast.success('This student has submitted the exam.');
+                            } else if (currentStatus === 'Suspended') {
+                                setSelectedSession(prev => (prev && prev._id === targetId) ? null : prev);
+                                toast.error('Student session suspended. Stream ended.');
+                            } else {
+                                // If the status is still Ongoing, it's just a transient disconnect.
+                                // Keep selectedSession open to allow auto-reconnect, and do not show any toast.
+                                console.log("Student is temporarily disconnected. Keeping stream container open.");
+                            }
+                        } else {
+                            setSelectedSession(prev => (prev && prev._id === targetId) ? null : prev);
+                        }
+                    } catch (err) {
+                        console.error("Error checking result submission status:", err);
+                    }
+                };
+                checkSubmissionStatus();
+            }
         }
     }, [activeSessions, selectedSession?._id]);
+
+    // Periodically fetch active sessions every second to keep live monitoring updated
+    useEffect(() => {
+        const interval = setInterval(async () => {
+            try {
+                const res = await axios.get(`${API_BASE}/api/results/active`);
+                setActiveSessions(res.data.data || []);
+            } catch (err) {
+                console.error("Failed to periodically fetch active sessions", err);
+            }
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [API_BASE]);
 
     useEffect(() => {
         if (activeTab === 'blocked-users') {
@@ -521,17 +761,282 @@ const AdminDashboard = () => {
         }
     }, [activeTab]);
 
+    // Admin Jitsi Meet stream mount effect
+    useEffect(() => {
+        if (!selectedSession) return;
+        const studentId = selectedSession.userId?._id || selectedSession.userId;
+        const examId = selectedSession.examId?._id || selectedSession.examId;
+        const backend = selectedSession.streamingBackend || getStreamingBackend(studentId);
+
+        if (backend !== 'jitsi' || !studentId || !examId) return;
+
+        let active = true;
+        const initJitsiAdmin = async () => {
+            await loadJitsiScript();
+            if (!active) return;
+
+            const domain = "meet.element.io";
+            const options = {
+                roomName: `apex-proctoring-${examId}-${studentId}`,
+                width: '100%',
+                height: '100%',
+                parentNode: document.getElementById('jitsi-admin-container'),
+                configOverwrite: {
+                    resolution: 240,
+                    startWithAudioMuted: true,
+                    startWithVideoMuted: true,
+                    prejoinPageEnabled: false,
+                    prejoinConfig: {
+                        enabled: false
+                    },
+                    startSilent: true,
+                    disableSelfView: true,
+                    readOnlyName: true,
+                    toolbarButtons: [],
+                    filmstrip: {
+                        disabled: true
+                    },
+                    enableNoAudioDetection: false,
+                    enableNoisyMicDetection: false,
+                    disabledNotifications: [
+                        'audioOnly.silentJoined',
+                        'dialog.silentJoined',
+                        'notify.silent-joined',
+                        'silent-joined',
+                        'audio-only.silent-joined',
+                        'notify.startSilentTitle',
+                        'notify.startSilentDescription',
+                        'notify.startSilent',
+                        'dialog.startSilentTitle',
+                        'dialog.startSilentDescription',
+                        'dialog.startSilent',
+                        'startSilentTitle',
+                        'startSilentDescription',
+                        'startSilent',
+                        'audioOnly.startSilentTitle',
+                        'audioOnly.startSilentDescription',
+                        'audioOnly.startSilent',
+                        'toolbar.talkWhileMutedPopup',
+                        'toolbar.noisyAudioInputTitle',
+                        'toolbar.noAudioSignalTitle',
+                        'dialog.micNotAllowed',
+                        'dialog.cameraNotAllowed',
+                        'dialog.micError',
+                        'dialog.cameraError',
+                        'dialog.cameraPermissionDenied',
+                        'dialog.micPermissionDenied',
+                        'notify.micNotAllowed',
+                        'notify.cameraNotAllowed',
+                        'dialog.deviceErrorTitle',
+                        'dialog.deviceNotFoundError',
+                        'dialog.devicePermissionDenied',
+                        'dialog.detectAudioMuting',
+                        'dialog.detectAudioMutting',
+                        'dialog.detectAudioMuted',
+                        'dialog.connectError'
+                    ]
+                },
+                interfaceConfigOverwrite: {
+                    TOOLBAR_BUTTONS: [],
+                }
+            };
+            try {
+                if (jitsiAdminApiRef.current) {
+                    jitsiAdminApiRef.current.dispose();
+                }
+                jitsiAdminApiRef.current = new window.JitsiMeetExternalAPI(domain, options);
+                
+                jitsiAdminApiRef.current.addListener('participantJoined', (participant) => {
+                    if (participant && participant.id) {
+                        jitsiAdminApiRef.current.executeCommand('pinParticipant', participant.id);
+                    }
+                });
+
+                jitsiAdminApiRef.current.addListener('videoConferenceJoined', () => {
+                    const participants = jitsiAdminApiRef.current.getParticipantsInfo();
+                    if (participants && participants.length > 0) {
+                        jitsiAdminApiRef.current.executeCommand('pinParticipant', participants[0].participantId);
+                    }
+                });
+
+                console.log("Jitsi Admin Viewer Established");
+            } catch (e) {
+                console.error("Jitsi admin init failed", e);
+            }
+        };
+
+        initJitsiAdmin();
+
+        return () => {
+            active = false;
+            if (jitsiAdminApiRef.current) {
+                jitsiAdminApiRef.current.dispose();
+                jitsiAdminApiRef.current = null;
+            }
+        };
+    }, [selectedSession?._id]);
+
+    // Admin WebRTC streaming connection effect
+    useEffect(() => {
+        const socket = socketRef.current;
+        if (!socket || !selectedSession) return;
+
+        const studentId = selectedSession.userId?._id || selectedSession.userId;
+        const examId = selectedSession.examId?._id || selectedSession.examId;
+        const backend = selectedSession.streamingBackend || getStreamingBackend(studentId);
+
+        if (backend !== 'webrtc' && backend !== 'livekit') return;
+
+        console.log(`WebRTC: Initiating stream connection with student ${studentId} for exam ${examId}`);
+
+        // Emit initiate to student
+        socket.emit('webrtc-initiate', { examId, userId: studentId });
+
+        const handleOffer = async ({ userId, offer }) => {
+            if (userId !== studentId) return;
+            console.log("WebRTC: Received offer from student:", userId);
+
+            if (adminPeerConnectionRef.current) {
+                adminPeerConnectionRef.current.close();
+            }
+
+            const pc = new RTCPeerConnection({
+                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+            });
+            adminPeerConnectionRef.current = pc;
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit('webrtc-candidate', {
+                        examId,
+                        userId: studentId,
+                        candidate: event.candidate,
+                        target: 'student'
+                    });
+                }
+            };
+
+            pc.ontrack = (event) => {
+                console.log("WebRTC: Received track from student");
+                const videoEl = document.getElementById('webrtc-admin-video');
+                if (videoEl && event.streams[0]) {
+                    videoEl.srcObject = event.streams[0];
+                    videoEl.style.display = 'block';
+                    const placeholder = document.getElementById('live-stream-placeholder');
+                    if (placeholder) placeholder.style.display = 'none';
+                    const imgEl = document.getElementById('live-stream-img');
+                    if (imgEl) imgEl.style.display = 'none';
+                }
+            };
+
+            try {
+                await pc.setRemoteDescription(new RTCSessionDescription(offer));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                socket.emit('webrtc-answer', {
+                    examId,
+                    userId: studentId,
+                    answer
+                });
+            } catch (e) {
+                console.error("WebRTC: Failed to set offer / create answer", e);
+            }
+        };
+
+        const handleCandidate = async ({ userId, candidate }) => {
+            if (userId !== studentId) return;
+            if (adminPeerConnectionRef.current && candidate) {
+                try {
+                    await adminPeerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+                } catch (e) {
+                    console.error("WebRTC: Failed to add ICE candidate", e);
+                }
+            }
+        };
+
+        socket.on('webrtc-offer', handleOffer);
+        socket.on('webrtc-candidate', handleCandidate);
+
+        return () => {
+            socket.off('webrtc-offer', handleOffer);
+            socket.off('webrtc-candidate', handleCandidate);
+            if (adminPeerConnectionRef.current) {
+                adminPeerConnectionRef.current.close();
+                adminPeerConnectionRef.current = null;
+            }
+        };
+    }, [selectedSession?._id]);
+
     const fetchBlockedUsers = async () => {
         setIsBlockedLoading(true);
         try {
             const res = await axios.get(`${API_BASE}/api/auth/blocked-users`);
             setBlockedUsers(res.data.data);
         } catch (err) {
-            toast.error('Failed to sync blocked registry');
+            // Suppress error
         } finally {
             setIsBlockedLoading(false);
         }
     };
+
+    const fetchFeedbacks = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.get(`${API_BASE}/api/feedback`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            setFeedbacks(res.data.data);
+        } catch (err) {
+            console.error('Feedback fetch failed:', err);
+        }
+    };
+
+    const handleDeleteFeedback = async (id) => {
+        triggerConfirm({
+            title: 'Delete Feedback',
+            message: 'Are you sure you want to permanently erase this student feedback? This action cannot be undone.',
+            confirmText: 'Erase Feedback',
+            onConfirm: async () => {
+                try {
+                    const token = localStorage.getItem('token');
+                    const res = await axios.delete(`${API_BASE}/api/feedback/${id}`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    if (res.data.success) {
+                        toast.success('Feedback entry deleted successfully');
+                        fetchFeedbacks();
+                    }
+                } catch (err) {
+                    toast.error(err.response?.data?.message || 'Deletion failed');
+                }
+            }
+        });
+    };
+
+    const handleSendMessage = () => {
+        if (!messageText.trim()) return;
+        if (!socketRef.current || !socketRef.current.connected) {
+            return toast.error('Socket not connected');
+        }
+        socketRef.current.emit('admin-message', {
+            targetId: selectedSession.userId?._id?.toString() || selectedSession.userId?.toString(),
+            examId: selectedSession.examId?._id?.toString() || selectedSession.examId?.toString(),
+            message: messageText
+        });
+        toast.success('Message Dispatched');
+        setShowMessageModal(false);
+        setMessageText('');
+    };
+
+    useEffect(() => {
+        if (activeTab === 'feedbacks') {
+            fetchFeedbacks();
+        }
+    }, [activeTab]);
     const fetchUserDetail = async (userId) => {
         setIsDetailLoading(true);
         try {
@@ -597,15 +1102,22 @@ const AdminDashboard = () => {
     };
 
     const handleDeleteUser = async () => {
-        if (!window.confirm('WARNING: PERMANENT ELIMINATION. Proceed?')) return;
-        try {
-            await axios.delete(`${API_BASE}/api/auth/users/${selectedUser.user._id}`);
-            toast.success('User eliminated from registry');
-            setSelectedUser(null);
-            fetchData();
-        } catch (err) {
-            toast.error(err.response?.data?.message || 'Deletion protocol failed');
-        }
+        const userName = selectedUser?.user?.name || 'this member';
+        triggerConfirm({
+            title: 'Permanent Elimination',
+            message: `Are you sure you want to completely erase "${userName}" from the active registry? This action is irreversible.`,
+            confirmText: 'Erase Member',
+            onConfirm: async () => {
+                try {
+                    await axios.delete(`${API_BASE}/api/auth/users/${selectedUser.user._id}`);
+                    toast.success('User eliminated from registry');
+                    setSelectedUser(null);
+                    fetchData();
+                } catch (err) {
+                    toast.error(err.response?.data?.message || 'Deletion protocol failed');
+                }
+            }
+        });
     };
 
     const handleRestoreUser = async (userId) => {
@@ -620,18 +1132,26 @@ const AdminDashboard = () => {
     };
 
     const handleHardDeleteUser = async (userId) => {
-        if (!window.confirm('CRITICAL WARNING: This will completely delete the account from the database. The user will be able to register again. Proceed?')) return;
-        try {
-            await axios.delete(`${API_BASE}/api/auth/users/${userId}/hard`);
-            toast.success('Account deleted from database');
-            setBlockedUsers(prev => prev.filter(u => u._id !== userId));
-            if (selectedUser?.user?._id === userId) {
-                setSelectedUser(null);
-                fetchData();
+        const blockedUserObj = blockedUsers.find(u => u._id === userId);
+        const userName = blockedUserObj?.name || 'this user';
+        triggerConfirm({
+            title: 'Critical Database Purge',
+            message: `CRITICAL WARNING: This will completely purge the account "${userName}" from the database. They will be able to register again, but all past data will be lost. Proceed?`,
+            confirmText: 'Purge Account',
+            onConfirm: async () => {
+                try {
+                    await axios.delete(`${API_BASE}/api/auth/users/${userId}/hard`);
+                    toast.success('Account deleted from database');
+                    setBlockedUsers(prev => prev.filter(u => u._id !== userId));
+                    if (selectedUser?.user?._id === userId) {
+                        setSelectedUser(null);
+                        fetchData();
+                    }
+                } catch (err) {
+                    toast.error('Purge operation failed');
+                }
             }
-        } catch (err) {
-            toast.error('Purge operation failed');
-        }
+        });
     };
     const handleSuspendStudent = async () => {
         if (!suspensionReason) return toast.error('Please specify a reason');
@@ -700,15 +1220,21 @@ const AdminDashboard = () => {
         }
     };
 
-    const handleDeleteEvent = async (eventId) => {
-        if (!window.confirm('Delete this event?')) return;
-        try {
-            await axios.delete(`${API_BASE}/api/events/${eventId}`);
-            setEvents(prev => prev.filter(e => e._id !== eventId));
-            toast.success('Event deleted');
-        } catch (err) {
-            toast.error(err.response?.data?.message || 'Failed to delete event');
-        }
+    const handleDeleteEvent = async (eventId, eventTitle = 'this event') => {
+        triggerConfirm({
+            title: 'Delete Event Protocol',
+            message: `Are you sure you want to delete "${eventTitle}"? This will remove the event from the calendar.`,
+            confirmText: 'Delete Event',
+            onConfirm: async () => {
+                try {
+                    await axios.delete(`${API_BASE}/api/events/${eventId}`);
+                    setEvents(prev => prev.filter(e => e._id !== eventId));
+                    toast.success('Event deleted');
+                } catch (err) {
+                    toast.error(err.response?.data?.message || 'Failed to delete event');
+                }
+            }
+        });
     };
 
     const handleUpdateEventStatus = async (eventId, status) => {
@@ -771,70 +1297,43 @@ const AdminDashboard = () => {
         return events.filter(e => e.type === 'class' && new Date(e.startTime) > now).sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
     };
 
-    const SidebarLink = ({ id, icon: Icon, label }) => (
-        <button
-            onClick={() => {
-                setActiveTab(id);
-                navigate(`/admin?tab=${id}`, { replace: true });
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${activeTab === id ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
-        >
-            <Icon size={20} /> <span className="hidden md:inline">{label}</span>
-        </button>
-    );
 
-    const MobileTabButton = ({ id, icon: Icon, label, onClick }) => (
-        <button
-            onClick={onClick || (() => {
-                setActiveTab(id);
-                navigate(`/admin?tab=${id}`, { replace: true });
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-                setIsMoreMenuOpen(false);
-            })}
-            className={`flex flex-col items-center gap-1 p-2 flex-1 transition-all ${activeTab === id ? 'text-blue-600 scale-110' : 'text-slate-400'}`}
-        >
-            <div className={`p-1.5 rounded-xl transition-all ${activeTab === id ? 'bg-blue-50' : ''}`}>
-                <Icon size={20} />
-            </div>
-            <span className="text-[9px] font-black uppercase tracking-tighter">{label}</span>
-        </button>
-    );
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
             <Navbar />
 
             <div className="flex-1 flex flex-col md:flex-row relative">
-                {/* Desktop Sidebar */}
-                <aside className="hidden md:block md:w-64 bg-white rounded-[2.5rem] shadow-sm border border-slate-200 p-6 md:fixed md:top-[140px] md:bottom-8 md:left-8 z-20 overflow-y-auto custom-scrollbar">
+                <aside
+                    ref={sidebarRef}
+                    className="hidden md:block md:w-64 bg-white rounded-[2.5rem] shadow-sm border border-slate-200 p-6 md:fixed md:top-[140px] md:bottom-8 md:left-8 z-20 overflow-y-auto overflow-x-hidden custom-scrollbar sidebar-stable"
+                >
                     <nav className="space-y-1">
-                        <SidebarLink id="overview" icon={LayoutDashboard} label="Dashboard" />
-                        <SidebarLink id="exams" icon={List} label="Exams Section" />
-                        <SidebarLink id="test-results" icon={Award} label="Test Results" />
-                        <SidebarLink id="events" icon={Calendar} label="Events" />
-                        <SidebarLink id="users" icon={Users} label="Manage Users" />
-                        <SidebarLink id="blocked-users" icon={UserX} label="Blocked" />
-                        <SidebarLink id="notices" icon={Bell} label="Notices" />
-                        <SidebarLink id="resources" icon={Book} label="Resources" />
-                        <SidebarLink id="quizzes" icon={Rocket} label="Quizzes Section" />
-                        <SidebarLink id="monitoring" icon={Activity} label="Test Monitoring" />
-                        <SidebarLink id="quiz-monitoring" icon={Activity} label="Quiz Monitoring" />
+                        <SidebarLink id="overview" icon={LayoutDashboard} label="Dashboard" activeTab={activeTab} sidebarRef={sidebarRef} navigate={navigate} />
+                        <SidebarLink id="exams" icon={List} label="Exams Section" activeTab={activeTab} sidebarRef={sidebarRef} navigate={navigate} />
+                        <SidebarLink id="test-results" icon={Award} label="Test Results" activeTab={activeTab} sidebarRef={sidebarRef} navigate={navigate} />
+                        <SidebarLink id="events" icon={Calendar} label="Events" activeTab={activeTab} sidebarRef={sidebarRef} navigate={navigate} />
+                        <SidebarLink id="users" icon={Users} label="Manage Users" activeTab={activeTab} sidebarRef={sidebarRef} navigate={navigate} />
+                        <SidebarLink id="blocked-users" icon={UserX} label="Blocked" activeTab={activeTab} sidebarRef={sidebarRef} navigate={navigate} />
+                        <SidebarLink id="notices" icon={Bell} label="Notices" activeTab={activeTab} sidebarRef={sidebarRef} navigate={navigate} />
+                        <SidebarLink id="resources" icon={Book} label="Resources" activeTab={activeTab} sidebarRef={sidebarRef} navigate={navigate} />
+                        <SidebarLink id="quizzes" icon={Rocket} label="Quizzes Section" activeTab={activeTab} sidebarRef={sidebarRef} navigate={navigate} />
+                        <SidebarLink id="monitoring" icon={Activity} label="Test Monitoring" activeTab={activeTab} sidebarRef={sidebarRef} navigate={navigate} />
+                        <SidebarLink id="quiz-monitoring" icon={Activity} label="Quiz Monitoring" activeTab={activeTab} sidebarRef={sidebarRef} navigate={navigate} />
 
-                        <Link to="/admin/evaluate" className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all text-slate-500 hover:bg-slate-50">
-                            <CheckCircle size={20} /> <span className="hidden md:inline">Evaluation Matrix</span>
-                        </Link>
-                        <SidebarLink id="settings" icon={Settings} label="Global Settings" />
+                        <SidebarLink id="evaluate" icon={CheckCircle} label="Evaluation Matrix" activeTab={activeTab} sidebarRef={sidebarRef} navigate={navigate} />
+                        <SidebarLink id="feedbacks" icon={MessageSquare} label="Feedback Hub" activeTab={activeTab} sidebarRef={sidebarRef} navigate={navigate} />
+                        <SidebarLink id="settings" icon={Settings} label="Global Settings" activeTab={activeTab} sidebarRef={sidebarRef} navigate={navigate} />
                     </nav>
                 </aside>
 
                 <div className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white border-t border-slate-100 pt-1 pb-1 px-2 shadow-[0_-10px_30_rgba(0,0,0,0.05)] safe-pb">
                     <div className="h-16 bg-white border border-slate-200/60 rounded-[1.5rem] shadow-sm flex items-center justify-around px-2">
-                        <MobileTabButton id="overview" icon={LayoutDashboard} label="Home" />
-                        <MobileTabButton id="exams" icon={List} label="Exams" />
-                        <MobileTabButton id="resources" icon={Book} label="Library" />
-                        <MobileTabButton id="matrix" icon={CheckCircle} label="Matrix" onClick={() => navigate('/admin/evaluate')} />
-                        <MobileTabButton id="more" icon={Plus} label="More" onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)} />
+                        <MobileTabButton id="overview" icon={LayoutDashboard} label="Home" activeTab={activeTab} navigate={navigate} setIsMoreMenuOpen={setIsMoreMenuOpen} />
+                        <MobileTabButton id="exams" icon={List} label="Exams" activeTab={activeTab} navigate={navigate} setIsMoreMenuOpen={setIsMoreMenuOpen} />
+                        <MobileTabButton id="resources" icon={Book} label="Library" activeTab={activeTab} navigate={navigate} setIsMoreMenuOpen={setIsMoreMenuOpen} />
+                        <MobileTabButton id="evaluate" icon={CheckCircle} label="Matrix" activeTab={activeTab} navigate={navigate} setIsMoreMenuOpen={setIsMoreMenuOpen} />
+                        <MobileTabButton id="more" icon={Plus} label="More" onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)} activeTab={activeTab} navigate={navigate} setIsMoreMenuOpen={setIsMoreMenuOpen} />
                     </div>
                 </div>
 
@@ -856,39 +1355,43 @@ const AdminDashboard = () => {
                                 className="absolute bottom-24 left-4 right-4 bg-white rounded-[2rem] p-8 shadow-2xl border border-slate-100 flex flex-col gap-2 max-h-[70vh] overflow-y-auto custom-scrollbar"
                             >
                                 <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-4">Extended Protocols</div>
-                                <button onClick={() => { setActiveTab('test-results'); setIsMoreMenuOpen(false); }} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all text-left">
+                                <button onClick={() => { navigate('/admin?tab=test-results', { replace: true }); setIsMoreMenuOpen(false); }} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all text-left">
                                     <Award size={20} className="text-blue-500 shrink-0" />
                                     <span className="font-bold text-slate-700 flex-1">Test Results</span>
                                 </button>
-                                <button onClick={() => { setActiveTab('events'); setIsMoreMenuOpen(false); }} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all text-left">
+                                <button onClick={() => { navigate('/admin?tab=events', { replace: true }); setIsMoreMenuOpen(false); }} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all text-left">
                                     <Calendar size={20} className="text-blue-500 shrink-0" />
                                     <span className="font-bold text-slate-700 flex-1">Events Management</span>
                                 </button>
-                                <button onClick={() => { setActiveTab('monitoring'); setIsMoreMenuOpen(false); }} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all text-left">
+                                <button onClick={() => { navigate('/admin?tab=monitoring', { replace: true }); setIsMoreMenuOpen(false); }} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all text-left">
                                     <Activity size={20} className="text-blue-500 shrink-0" />
                                     <span className="font-bold text-slate-700 flex-1">Test Monitoring</span>
                                 </button>
-                                <button onClick={() => { setActiveTab('quizzes'); setIsMoreMenuOpen(false); }} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all text-left">
+                                <button onClick={() => { navigate('/admin?tab=quizzes', { replace: true }); setIsMoreMenuOpen(false); }} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all text-left">
                                     <Rocket size={20} className="text-blue-500 shrink-0" />
                                     <span className="font-bold text-slate-700 flex-1">Quizzes Section</span>
                                 </button>
-                                <button onClick={() => { setActiveTab('quiz-monitoring'); setIsMoreMenuOpen(false); }} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all text-left">
+                                <button onClick={() => { navigate('/admin?tab=quiz-monitoring', { replace: true }); setIsMoreMenuOpen(false); }} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all text-left">
                                     <Activity size={20} className="text-blue-500 shrink-0" />
                                     <span className="font-bold text-slate-700 flex-1">Quiz Monitoring</span>
                                 </button>
-                                <button onClick={() => { setActiveTab('users'); setIsMoreMenuOpen(false); }} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all text-left">
+                                <button onClick={() => { navigate('/admin?tab=users', { replace: true }); setIsMoreMenuOpen(false); }} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all text-left">
                                     <Users size={20} className="text-blue-500 shrink-0" />
                                     <span className="font-bold text-slate-700 flex-1">Manage Users</span>
                                 </button>
-                                <button onClick={() => { setActiveTab('blocked-users'); setIsMoreMenuOpen(false); }} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all text-left">
+                                <button onClick={() => { navigate('/admin?tab=blocked-users', { replace: true }); setIsMoreMenuOpen(false); }} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all text-left">
                                     <UserX size={20} className="text-rose-500 shrink-0" />
                                     <span className="font-bold text-slate-700 flex-1">Blocked Registry</span>
                                 </button>
-                                <button onClick={() => { setActiveTab('notices'); setIsMoreMenuOpen(false); }} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all text-left">
+                                <button onClick={() => { navigate('/admin?tab=notices', { replace: true }); setIsMoreMenuOpen(false); }} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all text-left">
                                     <Bell size={20} className="text-amber-500 shrink-0" />
                                     <span className="font-bold text-slate-700 flex-1">Notice Board</span>
                                 </button>
-                                <button onClick={() => { setActiveTab('settings'); setIsMoreMenuOpen(false); }} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all text-left">
+                                <button onClick={() => { navigate('/admin?tab=feedbacks', { replace: true }); setIsMoreMenuOpen(false); }} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all text-left">
+                                    <MessageSquare size={20} className="text-emerald-500 shrink-0" />
+                                    <span className="font-bold text-slate-700 flex-1">User Feedbacks</span>
+                                </button>
+                                <button onClick={() => { navigate('/admin?tab=settings', { replace: true }); setIsMoreMenuOpen(false); }} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-all text-left">
                                     <Settings size={20} className="text-blue-500 shrink-0" />
                                     <span className="font-bold text-slate-700 flex-1">Global Settings</span>
                                 </button>
@@ -908,12 +1411,12 @@ const AdminDashboard = () => {
                             )}
                         </div>
 
-                        <AnimatePresence mode="wait">
-                            <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                        <AnimatePresence>
+                            <motion.div key={activeTab} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15 }}>
                                 {activeTab === 'overview' && (
                                     <div className="space-y-8">
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                            <StatsCard label="Active Exams" value={exams.filter(e => e.status === 'Ongoing').length} icon={ShieldCheck} color="bg-emerald-500" />
+                                            <StatsCard label="Active Exams" value={exams.filter(e => e.status === 'Ongoing' || e.status === 'Published').length} icon={ShieldCheck} color="bg-emerald-500" />
                                             <StatsCard label="Total Exams" value={exams.length} icon={List} color="bg-blue-500" />
                                             <StatsCard label="Participants" value={results.length} icon={Users} color="bg-amber-500" />
                                         </div>
@@ -986,6 +1489,10 @@ const AdminDashboard = () => {
                                 {activeTab === 'quiz-monitoring' && (
                                     <QuizMonitoringTab />
                                 )}
+
+                                {activeTab === 'evaluate' && (
+                                    <EvaluationTab />
+                                )}
                                 {activeTab === 'users' && (
                                     <div className="bg-white rounded-[2rem] p-6 md:p-8 shadow-sm border border-slate-100">
                                         <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-10 gap-6">
@@ -1017,7 +1524,7 @@ const AdminDashboard = () => {
                                                     <Plus size={16} /> Add Member
                                                 </button>
                                                 <button
-                                                    onClick={() => setActiveTab('blocked-users')}
+                                                    onClick={() => navigate('/admin?tab=blocked-users', { replace: true })}
                                                     className="w-full sm:w-auto px-6 py-4 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center gap-3 font-black text-[10px] uppercase tracking-widest hover:bg-rose-100 transition-all border border-rose-100"
                                                 >
                                                     <UserX size={16} /> Blocked Registry
@@ -1223,7 +1730,7 @@ const AdminDashboard = () => {
                                         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center bg-white p-5 md:p-8 rounded-[2.5rem] border border-slate-100 shadow-sm gap-6">
                                             <div className="flex items-center gap-4 flex-1">
                                                 <button
-                                                    onClick={() => setActiveTab('users')}
+                                                    onClick={() => navigate('/admin?tab=users', { replace: true })}
                                                     className="p-4 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-2xl transition-all"
                                                 >
                                                     <ChevronRight size={24} className="rotate-180" />
@@ -1356,41 +1863,41 @@ const AdminDashboard = () => {
                                             {activeSessions
                                                 .filter(s => !isSuspiciousOnly || (s.violations && (s.violations.tabSwitches > 0 || s.violations.fullscreenExits > 0)))
                                                 .map(session => (
-                                                <motion.div
-                                                    key={session._id}
-                                                    initial={{ opacity: 0, scale: 0.9 }}
-                                                    animate={{ opacity: 1, scale: 1 }}
-                                                    className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden group hover:border-blue-500/50 transition-all shadow-xl"
-                                                >
-                                                    <div className="aspect-video bg-black relative overflow-hidden">
-                                                        {session.liveSnapshot ? (
-                                                            <img src={session.liveSnapshot} alt="Stream" className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            <div className="absolute inset-0 flex items-center justify-center text-slate-700 bg-slate-900">
-                                                                <Monitor size={32} />
+                                                    <motion.div
+                                                        key={session._id}
+                                                        initial={{ opacity: 0, scale: 0.9 }}
+                                                        animate={{ opacity: 1, scale: 1 }}
+                                                        className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden group hover:border-blue-500/50 transition-all shadow-xl"
+                                                    >
+                                                        <div className="aspect-video bg-black relative overflow-hidden">
+                                                            {session.liveSnapshot ? (
+                                                                <img src={session.liveSnapshot} alt="Stream" className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <div className="absolute inset-0 flex items-center justify-center text-slate-700 bg-slate-900">
+                                                                    <Monitor size={32} />
+                                                                </div>
+                                                            )}
+                                                            <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className="text-[9px] font-black text-white uppercase truncate">{session.userId?.name || 'Anonymous'}</span>
+                                                                    <div className={`w-1.5 h-1.5 rounded-full ${Date.now() - new Date(session.lastActive) < 10000 ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                                                                </div>
                                                             </div>
-                                                        )}
-                                                        <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="text-[9px] font-black text-white uppercase truncate">{session.userId?.name || 'Anonymous'}</span>
-                                                                <div className={`w-1.5 h-1.5 rounded-full ${Date.now() - new Date(session.lastActive) < 10000 ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                                                            </div>
+                                                            {session.violations && (session.violations.tabSwitches > 0 || session.violations.fullscreenExits > 0) && (
+                                                                <div className="absolute top-2 left-2 px-2 py-1 bg-rose-600 text-white rounded-md text-[8px] font-black uppercase tracking-tighter flex items-center gap-1 animate-bounce">
+                                                                    <ShieldAlert size={10} /> SUSPICIOUS
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                        {session.violations && (session.violations.tabSwitches > 0 || session.violations.fullscreenExits > 0) && (
-                                                            <div className="absolute top-2 left-2 px-2 py-1 bg-rose-600 text-white rounded-md text-[8px] font-black uppercase tracking-tighter flex items-center gap-1 animate-bounce">
-                                                                <ShieldAlert size={10} /> SUSPICIOUS
+                                                        <div className="p-3 border-t border-slate-800 flex items-center justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className={`w-2 h-2 rounded-full ${session.micActivity > 50 ? 'bg-rose-500' : 'bg-slate-700'}`} />
+                                                                <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Mic: {session.micActivity || 0}</span>
                                                             </div>
-                                                        )}
-                                                    </div>
-                                                    <div className="p-3 border-t border-slate-800 flex items-center justify-between">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className={`w-2 h-2 rounded-full ${session.micActivity > 50 ? 'bg-rose-500' : 'bg-slate-700'}`} />
-                                                            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Mic: {session.micActivity || 0}</span>
+                                                            <button onClick={() => setSelectedSession(session)} className="text-[8px] font-black text-blue-400 hover:text-blue-300 uppercase tracking-widest">Details</button>
                                                         </div>
-                                                        <button onClick={() => setSelectedSession(session)} className="text-[8px] font-black text-blue-400 hover:text-blue-300 uppercase tracking-widest">Details</button>
-                                                    </div>
-                                                </motion.div>
-                                            ))}
+                                                    </motion.div>
+                                                ))}
                                         </div>
 
                                         {activeSessions.length === 0 && (
@@ -1530,8 +2037,8 @@ const AdminDashboard = () => {
                                                                         </td>
                                                                         <td className="px-6 py-4">
                                                                             <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${event.type === 'test' ? 'bg-rose-50 text-rose-600 border-rose-200' :
-                                                                                    event.type === 'other' ? 'bg-purple-50 text-purple-600 border-purple-200' :
-                                                                                        'bg-blue-50 text-blue-600 border-blue-200'
+                                                                                event.type === 'other' ? 'bg-purple-50 text-purple-600 border-purple-200' :
+                                                                                    'bg-blue-50 text-blue-600 border-blue-200'
                                                                                 }`}>
                                                                                 {event.type}
                                                                             </span>
@@ -1563,7 +2070,7 @@ const AdminDashboard = () => {
                                                                                 <Edit size={16} />
                                                                             </button>
                                                                             <button
-                                                                                onClick={() => handleDeleteEvent(event._id)}
+                                                                                onClick={() => handleDeleteEvent(event._id, event.title)}
                                                                                 className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
                                                                             >
                                                                                 <Trash size={16} />
@@ -1617,8 +2124,8 @@ const AdminDashboard = () => {
                                                         >
                                                             <div className="flex items-center gap-4">
                                                                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${notice.type === 'urgent' ? 'bg-rose-50 text-rose-500' :
-                                                                        notice.type === 'exam' ? 'bg-blue-50 text-blue-500' :
-                                                                            'bg-slate-50 text-slate-500'
+                                                                    notice.type === 'exam' ? 'bg-blue-50 text-blue-500' :
+                                                                        'bg-slate-50 text-slate-500'
                                                                     }`}>
                                                                     <Bell size={24} />
                                                                 </div>
@@ -1644,7 +2151,7 @@ const AdminDashboard = () => {
                                                                     <ChevronRight size={20} />
                                                                 </motion.div>
                                                                 <button
-                                                                    onClick={(e) => { e.stopPropagation(); handleDeleteNotice(notice._id); }}
+                                                                    onClick={(e) => { e.stopPropagation(); handleDeleteNotice(notice._id, notice.title); }}
                                                                     className="flex-1 md:flex-none h-12 px-6 bg-slate-50 text-slate-400 rounded-xl flex items-center justify-center hover:bg-rose-50 hover:text-rose-500 transition-all font-black text-[10px] uppercase tracking-widest"
                                                                 >
                                                                     <Trash2 size={18} className="mr-2" /> Delete
@@ -1730,16 +2237,194 @@ const AdminDashboard = () => {
                                                     </button>
                                                 </div>
 
+                                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-6 bg-slate-50 rounded-[2rem] border border-slate-100 group gap-6">
+                                                    <div className="flex gap-4">
+                                                        <div className={`w-12 h-12 rounded-2xl flex-shrink-0 flex items-center justify-center ${settings?.isEmailEnabled !== false ? 'bg-blue-100 text-blue-600' : 'bg-rose-100 text-rose-600'}`}>
+                                                            <Mail size={24} />
+                                                        </div>
+                                                        <div>
+                                                            <h3 className="font-black text-slate-800">Email Services (Credentials)</h3>
+                                                            <p className="text-xs font-bold text-slate-400 tracking-tight">Toggle global email dispatch for registration codes, recovery OTPs, broadcasts, and member onboarding.</p>
+                                                        </div>
+                                                    </div>
+
+                                                    <button
+                                                        onClick={async () => {
+                                                            try {
+                                                                const newStatus = settings?.isEmailEnabled === false ? true : false;
+                                                                const res = await axios.put(`${API_BASE}/api/settings`, { isEmailEnabled: newStatus });
+                                                                if (res.data.success) {
+                                                                    toast.success(`Email Services: ${newStatus ? 'ONLINE' : 'OFFLINE'}`);
+                                                                    fetchSettings();
+                                                                }
+                                                            } catch (err) {
+                                                                toast.error('Failed to update email service status');
+                                                            }
+                                                        }}
+                                                        className={`relative w-16 h-8 rounded-full transition-all duration-300 flex-shrink-0 ${settings?.isEmailEnabled !== false ? 'bg-blue-600' : 'bg-slate-300'}`}
+                                                    >
+                                                        <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 shadow-sm ${settings?.isEmailEnabled !== false ? 'right-1' : 'left-1'}`} />
+                                                    </button>
+                                                </div>
+
                                                 <div className="p-6 bg-blue-50/50 rounded-[2rem] border border-blue-100">
-                                                    <div className="flex items-start gap-3">
-                                                        <ShieldCheck className="text-blue-600 mt-0.5 flex-shrink-0" size={18} />
-                                                        <p className="text-xs font-bold text-blue-600 leading-relaxed">
-                                                            When Registration is <b>OFFLINE</b>, the "Register" button will be hidden from the login terminal and all direct registration endpoints will return a 403 Access Denied error.
-                                                        </p>
+                                                    <div className="flex flex-col gap-3">
+                                                        <div className="flex items-start gap-3">
+                                                            <ShieldCheck className="text-blue-600 mt-0.5 flex-shrink-0" size={18} />
+                                                            <p className="text-xs font-bold text-blue-600 leading-relaxed">
+                                                                When Registration is <b>OFFLINE</b>, the "Register" button will be hidden from the login terminal and all direct registration endpoints will return a 403 Access Denied error.
+                                                            </p>
+                                                        </div>
+                                                        <div className="w-full h-px bg-blue-100/50 my-1" />
+                                                        <div className="flex items-start gap-3">
+                                                            <ShieldCheck className="text-blue-600 mt-0.5 flex-shrink-0" size={18} />
+                                                            <p className="text-xs font-bold text-blue-600 leading-relaxed">
+                                                                When Email Services are <b>OFFLINE</b>, all automated email dispatches—including OTP verifications, password resets, onboarding emails, and system notices—will be bypassed or rejected to protect system credentials.
+                                                            </p>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
+                                    </div>
+                                )}
+
+                                {activeTab === 'feedbacks' && (
+                                    <div className="space-y-6">
+                                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                                            <div>
+                                                <h2 className="text-2xl font-black text-slate-800 tracking-tight">Feedback Hub</h2>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Review student & guest submissions</p>
+                                            </div>
+
+                                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                                                {/* Search Bar */}
+                                                <div className="relative w-full sm:w-auto">
+                                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                                    <input
+                                                        type="text"
+                                                        value={feedbackSearch}
+                                                        onChange={(e) => setFeedbackSearch(e.target.value)}
+                                                        placeholder="Search feedback..."
+                                                        className="w-full sm:w-64 pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 placeholder-slate-400 focus:outline-none focus:border-blue-500 transition-all shadow-sm"
+                                                    />
+                                                </div>
+
+                                                {/* Category Filter */}
+                                                <select
+                                                    value={feedbackFilter}
+                                                    onChange={(e) => setFeedbackFilter(e.target.value)}
+                                                    className="w-full sm:w-auto px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:border-blue-500 transition-all shadow-sm"
+                                                >
+                                                    <option value="">All Categories</option>
+                                                    <option value="Exams">Exams</option>
+                                                    <option value="Website">Website</option>
+                                                    <option value="Apex Club">Apex Club</option>
+                                                    <option value="General">General</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* Feedback list */}
+                                        {feedbacks.length === 0 ? (
+                                            <div className="bg-white rounded-[2rem] p-16 text-center border border-slate-100 shadow-sm">
+                                                <div className="w-16 h-16 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                                    <MessageSquarePlus size={28} />
+                                                </div>
+                                                <h3 className="text-lg font-black text-slate-700 tracking-tight">No Submissions Found</h3>
+                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Feedback shared by students will be logged here</p>
+                                            </div>
+                                        ) : (() => {
+                                            const filtered = feedbacks.filter(fb => {
+                                                const matchesSearch =
+                                                    fb.name?.toLowerCase().includes(feedbackSearch.toLowerCase()) ||
+                                                    fb.email?.toLowerCase().includes(feedbackSearch.toLowerCase()) ||
+                                                    fb.message?.toLowerCase().includes(feedbackSearch.toLowerCase()) ||
+                                                    fb.usn?.toLowerCase().includes(feedbackSearch.toLowerCase());
+                                                const matchesCategory = !feedbackFilter || fb.category === feedbackFilter;
+                                                return matchesSearch && matchesCategory;
+                                            });
+
+                                            if (filtered.length === 0) {
+                                                return (
+                                                    <div className="bg-white rounded-[2rem] p-16 text-center border border-slate-100 shadow-sm">
+                                                        <p className="text-sm font-bold text-slate-500">No feedbacks match your active filters.</p>
+                                                    </div>
+                                                );
+                                            }
+
+                                            return (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                    {filtered.map((fb) => {
+                                                        const isStudent = fb.userId;
+                                                        const userUsn = fb.usn || isStudent?.usn || 'N/A';
+                                                        return (
+                                                            <motion.div
+                                                                key={fb._id}
+                                                                layout
+                                                                whileHover={{ y: -4, scale: 1.02 }}
+                                                                onClick={() => setSelectedFeedback(fb)}
+                                                                className="bg-white rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-100 transition-all flex flex-col justify-between cursor-pointer group relative overflow-hidden"
+                                                            >
+                                                                <div>
+                                                                    <div className="flex justify-between items-start gap-4 mb-5">
+                                                                        <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full ${fb.category === 'Exams' ? 'bg-sky-50 text-sky-600 border border-sky-100' :
+                                                                                fb.category === 'Website' ? 'bg-violet-50 text-violet-600 border border-violet-100' :
+                                                                                    fb.category === 'Apex Club' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                                                                                        'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                                                            }`}>
+                                                                            {fb.category === 'Exams' && '📝 '}
+                                                                            {fb.category === 'Website' && '🌐 '}
+                                                                            {fb.category === 'Apex Club' && '⚡ '}
+                                                                            {fb.category === 'General' && '💬 '}
+                                                                            {fb.category}
+                                                                        </span>
+
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                handleDeleteFeedback(fb._id);
+                                                                            }}
+                                                                            className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-all border border-slate-100 hover:border-rose-100 active:scale-90"
+                                                                            title="Delete Submission"
+                                                                        >
+                                                                            <Trash2 size={14} />
+                                                                        </button>
+                                                                    </div>
+
+                                                                    <div className="flex items-start sm:items-center gap-3 mb-4">
+                                                                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-50 text-slate-700 rounded-xl sm:rounded-2xl flex items-center justify-center font-black group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors uppercase text-xs sm:text-sm border border-slate-100 group-hover:border-blue-100 shrink-0">
+                                                                            {fb.name ? fb.name[0] : '?'}
+                                                                        </div>
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <div className="flex flex-wrap items-center gap-1.5">
+                                                                                <h3 className="font-black text-slate-800 text-base leading-snug group-hover:text-blue-600 transition-colors truncate">{fb.name}</h3>
+                                                                                <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded shrink-0 ${isStudent ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'
+                                                                                    }`}>
+                                                                                    {isStudent ? 'Student' : 'Guest'}
+                                                                                </span>
+                                                                            </div>
+                                                                            <p className="text-[11px] font-bold text-slate-400 leading-normal break-all mt-1">{fb.email}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-4">
+                                                                    <div>
+                                                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">USN / ID</span>
+                                                                        <span className="text-xs font-black text-slate-700 uppercase">{userUsn}</span>
+                                                                    </div>
+
+                                                                    <div className="w-8 h-8 rounded-xl bg-slate-50 group-hover:bg-blue-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-all">
+                                                                        <ChevronRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
+                                                                    </div>
+                                                                </div>
+                                                            </motion.div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 )}
                             </motion.div>
@@ -1747,6 +2432,97 @@ const AdminDashboard = () => {
                     </div>
                 </main>
             </div>
+
+            {/* Feedback Detail Modal */}
+            <AnimatePresence>
+                {selectedFeedback && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-white rounded-[2rem] sm:rounded-[3rem] w-full max-w-xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto p-6 sm:p-8 md:p-10 shadow-2xl relative border border-slate-100 custom-scrollbar"
+                        >
+                            {/* Close button */}
+                            <button
+                                onClick={() => setSelectedFeedback(null)}
+                                className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2 sm:p-3 text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-xl sm:rounded-2xl transition-all"
+                            >
+                                <X size={20} />
+                            </button>
+
+                            {/* Header / Category */}
+                            <div className="mb-6 sm:mb-8">
+                                <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full ${selectedFeedback.category === 'Exams' ? 'bg-sky-50 text-sky-600 border border-sky-100' :
+                                        selectedFeedback.category === 'Website' ? 'bg-violet-50 text-violet-600 border border-violet-100' :
+                                            selectedFeedback.category === 'Apex Club' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                                                'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                    }`}>
+                                    {selectedFeedback.category === 'Exams' && '📝 '}
+                                    {selectedFeedback.category === 'Website' && '🌐 '}
+                                    {selectedFeedback.category === 'Apex Club' && '⚡ '}
+                                    {selectedFeedback.category === 'General' && '💬 '}
+                                    {selectedFeedback.category} Category
+                                </span>
+                                <h2 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight mt-4">Feedback Detail</h2>
+                                <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Submitted on {new Date(selectedFeedback.createdAt).toLocaleString()}</p>
+                            </div>
+
+                            {/* User details section */}
+                            <div className="bg-slate-50 rounded-[1.5rem] sm:rounded-[2rem] p-4 sm:p-6 mb-6 sm:mb-8 border border-slate-100 flex items-start sm:items-center gap-4">
+                                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-100 text-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center font-black text-lg sm:text-xl uppercase shrink-0 animate-pulse-slow">
+                                    {selectedFeedback.name ? selectedFeedback.name[0] : '?'}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                        <h3 className="font-black text-slate-800 text-base sm:text-lg leading-tight truncate">{selectedFeedback.name}</h3>
+                                        <span className={`text-[8px] sm:text-[9px] font-black uppercase tracking-widest px-1.5 sm:px-2 py-0.5 rounded shrink-0 ${selectedFeedback.userId ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
+                                            }`}>
+                                            {selectedFeedback.userId ? 'Student' : 'Guest'}
+                                        </span>
+                                    </div>
+                                    <p className="text-[11px] sm:text-xs font-bold text-slate-500 mt-1 break-all">{selectedFeedback.email}</p>
+                                    {(selectedFeedback.userId || selectedFeedback.usn) && (
+                                        <p className="text-[9px] sm:text-[10px] font-black text-blue-600 uppercase tracking-widest mt-1.5 leading-normal">
+                                            USN: {selectedFeedback.usn || selectedFeedback.userId?.usn || 'N/A'} {selectedFeedback.userId?.department ? `• ${selectedFeedback.userId.department} Dept` : ''}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Detailed Feedback content */}
+                            <div className="mb-6 sm:mb-8">
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Feedback Message</h4>
+                                <div className="bg-slate-50/50 rounded-[1.5rem] sm:rounded-[2rem] p-4 sm:p-6 border border-slate-100 text-slate-700 text-xs sm:text-sm font-medium leading-relaxed whitespace-pre-wrap">
+                                    "{selectedFeedback.message}"
+                                </div>
+                            </div>
+
+                            {/* Actions / Close & Delete */}
+                            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                                <button
+                                    onClick={() => {
+                                        setSelectedFeedback(null);
+                                    }}
+                                    className="w-full sm:flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest transition-all"
+                                >
+                                    Dismiss
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const id = selectedFeedback._id;
+                                        setSelectedFeedback(null);
+                                        handleDeleteFeedback(id);
+                                    }}
+                                    className="w-full sm:flex-1 py-3.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest border border-rose-100 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <Trash2 size={16} /> Delete Feedback
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
 
             {/* Launch Exam Modal */}
             <AnimatePresence>
@@ -2298,21 +3074,21 @@ const AdminDashboard = () => {
                                             <div className="space-y-2">
                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Secure Passkey (Optional)</label>
                                                 <div className="relative">
-                                                     <input 
-                                                         type={showEditPassword ? "text" : "password"} 
-                                                         placeholder="Keep blank to maintain current" 
-                                                         value={editForm.password} 
-                                                         onChange={e => setEditForm({ ...editForm, password: e.target.value })} 
-                                                         className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold focus:ring-4 focus:ring-blue-500/10 outline-none pr-12" 
-                                                     />
-                                                     <button 
-                                                         type="button"
-                                                         onClick={() => setShowEditPassword(!showEditPassword)}
-                                                         className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors"
-                                                     >
-                                                         {showEditPassword ? <Eye size={20} /> : <EyeOff size={20} />}
-                                                     </button>
-                                                 </div>
+                                                    <input
+                                                        type={showEditPassword ? "text" : "password"}
+                                                        placeholder="Keep blank to maintain current"
+                                                        value={editForm.password}
+                                                        onChange={e => setEditForm({ ...editForm, password: e.target.value })}
+                                                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold focus:ring-4 focus:ring-blue-500/10 outline-none pr-12"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowEditPassword(!showEditPassword)}
+                                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors"
+                                                    >
+                                                        {showEditPassword ? <Eye size={20} /> : <EyeOff size={20} />}
+                                                    </button>
+                                                </div>
                                             </div>
                                             <div className="space-y-2">
                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Mobile Mesh</label>
@@ -2433,22 +3209,22 @@ const AdminDashboard = () => {
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Security Key (Password)</label>
                                         <div className="relative">
-                                             <input 
-                                                 required 
-                                                 type={showAddPassword ? "text" : "password"} 
-                                                 value={addUserForm.password} 
-                                                 onChange={e => setAddUserForm({ ...addUserForm, password: e.target.value })} 
-                                                 className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none pr-14" 
-                                                 placeholder="Minimum 6 characters" 
-                                             />
-                                             <button 
-                                                 type="button"
-                                                 onClick={() => setShowAddPassword(!showAddPassword)}
-                                                 className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors"
-                                             >
-                                                 {showAddPassword ? <Eye size={20} /> : <EyeOff size={20} />}
-                                             </button>
-                                         </div>
+                                            <input
+                                                required
+                                                type={showAddPassword ? "text" : "password"}
+                                                value={addUserForm.password}
+                                                onChange={e => setAddUserForm({ ...addUserForm, password: e.target.value })}
+                                                className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none pr-14"
+                                                placeholder="Minimum 6 characters"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowAddPassword(!showAddPassword)}
+                                                className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors"
+                                            >
+                                                {showAddPassword ? <Eye size={20} /> : <EyeOff size={20} />}
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <div className="pt-6">
@@ -2466,8 +3242,8 @@ const AdminDashboard = () => {
             <AnimatePresence>
                 {selectedSession && (
                     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[110] flex items-center justify-center p-4">
-                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-[3rem] w-full max-w-2xl overflow-hidden shadow-2xl">
-                            <div className="p-8 border-b border-slate-50 flex justify-between items-center">
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-[2rem] w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
+                            <div className="p-6 border-b border-slate-50 flex justify-between items-center shrink-0">
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center font-black">
                                         {selectedSession.userId?.name?.[0]}
@@ -2482,81 +3258,131 @@ const AdminDashboard = () => {
                                 </button>
                             </div>
 
-                            <div className="p-8">
-                                <div className="aspect-video bg-slate-900 rounded-[2rem] flex flex-col items-center justify-center relative overflow-hidden group">
-                                    {(selectedSession.liveSnapshot && selectedSession.liveSnapshot.length > 50) ? (
-                                        <img
-                                            src={selectedSession.liveSnapshot}
-                                            alt="Live Feed"
-                                            className="w-full h-full object-cover"
-                                            onError={(e) => {
-                                                e.target.style.display = 'none';
-                                                e.target.nextSibling.style.display = 'flex';
-                                            }}
-                                        />
-                                    ) : null}
-                                    <div className="flex flex-col items-center justify-center">
-                                        <Monitor size={48} className="text-slate-700 mb-4" />
-                                        <p className="text-slate-500 font-bold text-xs uppercase tracking-widest animate-pulse">
-                                            {selectedSession.liveSnapshot ? 'Lost Uplink...' : 'Establishing Secure Uplink...'}
-                                        </p>
-                                    </div>
-                                    <div className="absolute top-6 left-6 flex items-center gap-2 px-3 py-1.5 bg-rose-600 text-white rounded-full text-[10px] font-black uppercase tracking-tighter animate-pulse">
-                                        <div className="w-2 h-2 bg-white rounded-full" />
-                                        LIVE
-                                    </div>
+                            <div className="p-6 overflow-y-auto">
+                                <div className="aspect-video bg-slate-900 rounded-2xl flex flex-col items-center justify-center relative overflow-hidden group">
+                                    {(() => {
+                                        const studentId = selectedSession.userId?._id || selectedSession.userId;
+                                        const activeBackend = selectedSession.streamingBackend || getStreamingBackend(studentId);
+                                        return (
+                                            <>
+                                                {/* WebRTC / LiveKit Video element */}
+                                                {(activeBackend === 'webrtc' || activeBackend === 'livekit') && (
+                                                    <video
+                                                        id="webrtc-admin-video"
+                                                        autoPlay
+                                                        playsInline
+                                                        className="w-full h-full object-cover z-20 absolute inset-0"
+                                                        style={{ display: 'none' }}
+                                                    />
+                                                )}
+
+                                                {/* Jitsi meet element */}
+                                                {activeBackend === 'jitsi' && (
+                                                    <div id="jitsi-admin-container" className="w-full h-full absolute inset-0 z-20" />
+                                                )}
+
+                                                <img
+                                                    id="live-stream-img"
+                                                    data-userid={studentId}
+                                                    src={selectedSession.liveSnapshot || ''}
+                                                    alt="Live Feed"
+                                                    className="w-full h-full object-cover"
+                                                    style={{ display: selectedSession.liveSnapshot ? 'block' : 'none' }}
+                                                    onError={(e) => {
+                                                        e.target.style.display = 'none';
+                                                        const ph = document.getElementById('live-stream-placeholder');
+                                                        if (ph) ph.style.display = 'flex';
+                                                    }}
+                                                />
+                                                <div id="live-stream-placeholder" className="flex flex-col items-center justify-center absolute inset-0 bg-slate-900" style={{ display: selectedSession.liveSnapshot ? 'none' : 'flex' }}>
+                                                    <Monitor size={48} className="text-slate-700 mb-4" />
+                                                    <p className="text-slate-500 font-bold text-xs uppercase tracking-widest animate-pulse">
+                                                        Establishing Secure Uplink ({activeBackend.toUpperCase()})...
+                                                    </p>
+                                                </div>
+                                                <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1.5 bg-rose-600 text-white rounded-full text-[10px] font-black uppercase tracking-tighter animate-pulse z-30">
+                                                    <div className="w-2 h-2 bg-white rounded-full" />
+                                                    LIVE - {activeBackend.toUpperCase()}
+                                                </div>
+                                            </>
+                                        );
+                                    })()}
                                 </div>
 
-                                <div className="mt-8 grid grid-cols-2 gap-4">
-                                    <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col gap-3">
+                                <div className="mt-4 grid grid-cols-2 gap-4">
+                                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col gap-3">
                                         <div className="flex justify-between items-center">
                                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Audio Level</p>
-                                            <span className="text-[10px] font-black text-slate-900">{selectedSession.micActivity || 0}%</span>
                                         </div>
                                         <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
-                                            <motion.div
-                                                initial={{ width: 0 }}
-                                                animate={{ width: `${selectedSession.micActivity || 0}%` }}
-                                                className={`h-full transition-all duration-500 ${(selectedSession.micActivity || 0) > 60 ? 'bg-rose-500' :
-                                                        (selectedSession.micActivity || 0) > 30 ? 'bg-amber-500' : 'bg-emerald-500'
-                                                    }`}
+                                            <div
+                                                id="live-stream-mic"
+                                                data-userid={selectedSession.userId?._id || selectedSession.userId}
+                                                style={{ width: `${selectedSession.micActivity || 0}%` }}
+                                                className={`h-full transition-all duration-300 ${(selectedSession.micActivity || 0) > 60 ? 'bg-rose-500' : 'bg-green-500'}`}
                                             />
                                         </div>
                                     </div>
-                                    <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col gap-1">
+                                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col gap-1">
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tab Transitions</p>
                                         <p className="text-xl font-black text-rose-600">{selectedSession.violations?.tabSwitches || 0} Events</p>
                                     </div>
-                                    <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col gap-1">
+                                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col gap-1 col-span-2 sm:col-span-1">
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Focus Lost</p>
                                         <p className="text-xl font-black text-amber-600">{selectedSession.violations?.fullscreenExits || 0} Events</p>
                                     </div>
                                 </div>
 
                                 <div className="mt-4 grid grid-cols-2 gap-4">
-                                    <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Session Status</p>
-                                        <p className="text-xl font-black text-green-600 uppercase">Authenticated</p>
+                                        <p className="text-lg font-black text-green-600 uppercase">Authenticated</p>
                                     </div>
-                                    <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Last Update</p>
-                                        <p className="text-xl font-black text-slate-900">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
+                                        <p className="text-lg font-black text-slate-900">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
                                     </div>
                                 </div>
 
-                                <div className="mt-8 flex gap-4">
+                                <div className="mt-6 flex gap-4">
                                     <button
                                         onClick={() => setShowSuspendModal(true)}
-                                        className="flex-1 py-5 bg-rose-500 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-rose-600 transition-all shadow-xl shadow-rose-500/20"
+                                        className="flex-1 py-4 bg-rose-500 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-rose-600 transition-all shadow-xl shadow-rose-500/20"
                                     >
                                         Suspend Student
                                     </button>
                                     <button
-                                        className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-200 transition-all"
+                                        onClick={() => setShowMessageModal(true)}
+                                        className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-200 transition-all"
                                     >
                                         Send Message
                                     </button>
                                 </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Send Message Modal */}
+            <AnimatePresence>
+                {showMessageModal && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[120] flex items-center justify-center p-4">
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl">
+                            <h2 className="text-2xl font-black tracking-tight mb-2">Send Direct Message</h2>
+                            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8">Dispatches message to student's screen</p>
+
+                            <textarea
+                                value={messageText}
+                                onChange={e => setMessageText(e.target.value)}
+                                placeholder="e.g., Please fix your camera angle immediately."
+                                className="w-full p-6 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:ring-4 focus:ring-blue-500/10 mb-8 resize-none"
+                                rows="4"
+                            />
+
+                            <div className="flex gap-4">
+                                <button onClick={() => setShowMessageModal(false)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest">Cancel</button>
+                                <button onClick={handleSendMessage} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-600/20">Send Protocol</button>
                             </div>
                         </motion.div>
                     </div>
@@ -2601,15 +3427,15 @@ const AdminDashboard = () => {
                                 <button onClick={() => setShowBulkUpload(false)} className="p-3 bg-slate-100 text-slate-400 hover:text-rose-600 rounded-2xl transition-all"><X size={24} /></button>
                             </div>
 
-                            <div 
+                            <div
                                 className={`p-16 border-2 border-dashed rounded-[3rem] text-center transition-all cursor-pointer relative group ${bulkFile ? 'bg-blue-50 border-blue-400' : 'bg-slate-50 border-slate-200 hover:border-blue-400 hover:bg-white'}`}
                                 onClick={() => document.getElementById('bulk-file-input').click()}
                             >
-                                <input 
-                                    id="bulk-file-input" 
-                                    type="file" 
-                                    className="hidden" 
-                                    accept=".xlsx,.xls,.csv" 
+                                <input
+                                    id="bulk-file-input"
+                                    type="file"
+                                    className="hidden"
+                                    accept=".xlsx,.xls,.csv"
                                     onChange={(e) => setBulkFile(e.target.files[0])}
                                 />
                                 <div className="flex flex-col items-center">
@@ -2634,10 +3460,10 @@ const AdminDashboard = () => {
                                     <div className="p-2 bg-amber-200 text-amber-700 rounded-lg h-fit"><Info size={16} /></div>
                                     <div>
                                         <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-1">Spreadsheet Requirements</p>
-                                        <p className="text-xs font-bold text-amber-700/80 leading-relaxed">Ensure your file contains the following headers: <b>name, email, usn, department, mobileNumber</b>. Default passwords will follow the pattern: <b>NameUsnLast5@apex</b> (e.g., Gopalcd043@apex).</p>
+                                        <p className="text-xs font-bold text-amber-700/80 leading-relaxed">Ensure your file contains the following headers: <b>name, email, usn, department, mobileNumber</b>. Default passwords will follow the pattern: <b>Name(5 letters)MobileLast4@apex</b> (e.g., Gopal9937@apex).</p>
                                     </div>
                                 </div>
-                                <button 
+                                <button
                                     onClick={handleBulkUpload}
                                     disabled={!bulkFile || isBulkUploading}
                                     className={`w-full py-5 rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] shadow-xl transition-all ${!bulkFile || isBulkUploading ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-600/20 active:scale-95'}`}
@@ -2653,97 +3479,99 @@ const AdminDashboard = () => {
             {/* Add Notice Modal (Gmail Style) */}
             <AnimatePresence>
                 {showAddNoticeModal && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pb-24 sm:pb-4">
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAddNoticeModal(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
                         <motion.div
                             initial={{ y: 100, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             exit={{ y: 100, opacity: 0 }}
-                            className="relative bg-white w-full max-w-2xl rounded-t-[2rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100"
+                            className="relative bg-white w-full max-w-2xl max-h-[85vh] sm:max-h-[90vh] rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100 flex flex-col"
                         >
-                            <div className="bg-slate-900 p-6 flex justify-between items-center">
+                            <div className="bg-slate-900 p-6 flex justify-between items-center shrink-0">
                                 <h3 className="text-white font-bold flex items-center gap-2">
                                     <MessageSquarePlus size={18} /> New Announcement
                                 </h3>
                                 <button onClick={() => setShowAddNoticeModal(false)} className="text-slate-400 hover:text-white transition-all"><X size={20} /></button>
                             </div>
 
-                            <form onSubmit={handleAddNotice} className="p-0">
-                                <div className="divide-y divide-slate-100">
-                                    <div className="flex items-center px-6 py-4 gap-4">
-                                        <span className="text-xs font-black text-slate-400 uppercase tracking-widest w-16">To:</span>
-                                        <select value={newNotice.targetDepartment} onChange={e => setNewNotice({ ...newNotice, targetDepartment: e.target.value })} className="flex-1 bg-transparent font-bold text-slate-700 outline-none">
-                                            <option value="All">All Protocol Members (Universal)</option>
-                                            <option value="CSD">CSD Dept</option>
-                                            <option value="CSE">CSE Dept</option>
-                                            <option value="AIML">AIML Dept</option>
-                                            <option value="AIDS">AIDS Dept</option>
-                                            <option value="CEE">CEE Dept</option>
-                                            <option value="BMRE">BMRE Dept</option>
-                                        </select>
+                            <form onSubmit={handleAddNotice} className="flex flex-col flex-1 overflow-hidden">
+                                <div className="flex-1 overflow-y-auto">
+                                    <div className="divide-y divide-slate-100">
+                                        <div className="flex items-center px-6 py-4 gap-4">
+                                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest w-16">To:</span>
+                                            <select value={newNotice.targetDepartment} onChange={e => setNewNotice({ ...newNotice, targetDepartment: e.target.value })} className="flex-1 bg-transparent font-bold text-slate-700 outline-none">
+                                                <option value="All">All Protocol Members (Universal)</option>
+                                                <option value="CSD">CSD Dept</option>
+                                                <option value="CSE">CSE Dept</option>
+                                                <option value="AIML">AIML Dept</option>
+                                                <option value="AIDS">AIDS Dept</option>
+                                                <option value="CEE">CEE Dept</option>
+                                                <option value="BMRE">BMRE Dept</option>
+                                            </select>
+                                        </div>
+
+                                        <div className="flex items-center px-6 py-4 gap-4">
+                                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest w-16">Priority:</span>
+                                            <select value={newNotice.type} onChange={e => setNewNotice({ ...newNotice, type: e.target.value })} className="flex-1 bg-transparent font-bold text-slate-700 outline-none">
+                                                <option value="general">General Broadcast</option>
+                                                <option value="urgent">Urgent Security Alert</option>
+                                                <option value="exam">Academic/Exam Update</option>
+                                                <option value="holiday">Holiday Notice</option>
+                                            </select>
+                                        </div>
+
+                                        <div className="flex items-center px-6 py-4 gap-4">
+                                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest w-16">Title:</span>
+                                            <input required type="text" value={newNotice.title} onChange={e => setNewNotice({ ...newNotice, title: e.target.value })} className="flex-1 bg-transparent font-bold text-slate-700 outline-none" placeholder="Notice Heading" />
+                                        </div>
+
+                                        <div className="flex items-center px-6 py-4 gap-4">
+                                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest w-16">Subject:</span>
+                                            <input required type="text" value={newNotice.subject} onChange={e => setNewNotice({ ...newNotice, subject: e.target.value })} className="flex-1 bg-transparent font-bold text-slate-700 outline-none" placeholder="Email Subject Line" />
+                                        </div>
                                     </div>
 
-                                    <div className="flex items-center px-6 py-4 gap-4">
-                                        <span className="text-xs font-black text-slate-400 uppercase tracking-widest w-16">Priority:</span>
-                                        <select value={newNotice.type} onChange={e => setNewNotice({ ...newNotice, type: e.target.value })} className="flex-1 bg-transparent font-bold text-slate-700 outline-none">
-                                            <option value="general">General Broadcast</option>
-                                            <option value="urgent">Urgent Security Alert</option>
-                                            <option value="exam">Academic/Exam Update</option>
-                                            <option value="holiday">Holiday Notice</option>
-                                        </select>
-                                    </div>
+                                    <div className="p-6">
+                                        <textarea
+                                            required
+                                            value={newNotice.content}
+                                            onChange={e => setNewNotice({ ...newNotice, content: e.target.value })}
+                                            className="w-full h-48 bg-transparent text-slate-600 font-medium outline-none resize-none"
+                                            placeholder="Compose your message here..."
+                                        />
 
-                                    <div className="flex items-center px-6 py-4 gap-4">
-                                        <span className="text-xs font-black text-slate-400 uppercase tracking-widest w-16">Title:</span>
-                                        <input required type="text" value={newNotice.title} onChange={e => setNewNotice({ ...newNotice, title: e.target.value })} className="flex-1 bg-transparent font-bold text-slate-700 outline-none" placeholder="Notice Heading" />
-                                    </div>
-
-                                    <div className="flex items-center px-6 py-4 gap-4">
-                                        <span className="text-xs font-black text-slate-400 uppercase tracking-widest w-16">Subject:</span>
-                                        <input required type="text" value={newNotice.subject} onChange={e => setNewNotice({ ...newNotice, subject: e.target.value })} className="flex-1 bg-transparent font-bold text-slate-700 outline-none" placeholder="Email Subject Line" />
-                                    </div>
-                                </div>
-
-                                <div className="p-6">
-                                    <textarea
-                                        required
-                                        value={newNotice.content}
-                                        onChange={e => setNewNotice({ ...newNotice, content: e.target.value })}
-                                        className="w-full h-48 bg-transparent text-slate-600 font-medium outline-none resize-none"
-                                        placeholder="Compose your message here..."
-                                    />
-
-                                    {noticeImagePreview && (
-                                        <div className="mt-6 border-t border-slate-100 pt-6">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                                                <div className="space-y-4">
-                                                    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest">Visual Scale: {newNotice.imageScale || 100}%</label>
-                                                    <input 
-                                                        type="range" 
-                                                        min="10" 
-                                                        max="100" 
-                                                        value={newNotice.imageScale || 100} 
-                                                        onChange={(e) => setNewNotice({ ...newNotice, imageScale: parseInt(e.target.value) })}
-                                                        className="w-full accent-blue-600 cursor-pointer h-2 bg-slate-200 rounded-lg appearance-none"
-                                                    />
-                                                    <p className="text-[10px] text-slate-500 font-bold">Slide to adjust the image size displayed to students.</p>
-                                                </div>
-                                                <div className="relative group mx-auto flex justify-center" style={{ width: `${newNotice.imageScale || 100}%` }}>
-                                                    <img src={noticeImagePreview} alt="Preview" className="w-full h-auto rounded-xl border-2 border-slate-100" />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => { setNoticeImageFile(null); setNoticeImagePreview(null); setNewNotice({...newNotice, imageScale: 100}); }}
-                                                        className="absolute -top-3 -right-3 w-8 h-8 bg-rose-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg"
-                                                    >
-                                                        <X size={16} />
-                                                    </button>
+                                        {noticeImagePreview && (
+                                            <div className="mt-6 border-t border-slate-100 pt-6">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                                                    <div className="space-y-4">
+                                                        <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest">Visual Scale: {newNotice.imageScale || 100}%</label>
+                                                        <input
+                                                            type="range"
+                                                            min="10"
+                                                            max="100"
+                                                            value={newNotice.imageScale || 100}
+                                                            onChange={(e) => setNewNotice({ ...newNotice, imageScale: parseInt(e.target.value) })}
+                                                            className="w-full accent-blue-600 cursor-pointer h-2 bg-slate-200 rounded-lg appearance-none"
+                                                        />
+                                                        <p className="text-[10px] text-slate-500 font-bold">Slide to adjust the image size displayed to students.</p>
+                                                    </div>
+                                                    <div className="relative group mx-auto flex justify-center" style={{ width: `${newNotice.imageScale || 100}%` }}>
+                                                        <img src={noticeImagePreview} alt="Preview" className="w-full h-auto rounded-xl border-2 border-slate-100" />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => { setNoticeImageFile(null); setNoticeImagePreview(null); setNewNotice({ ...newNotice, imageScale: 100 }); }}
+                                                            className="absolute -top-3 -right-3 w-8 h-8 bg-rose-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg"
+                                                        >
+                                                            <X size={16} />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
                                 </div>
 
-                                <div className="px-6 py-4 bg-slate-50 flex items-center justify-between">
+                                <div className="px-6 py-4 bg-slate-50 flex items-center justify-between shrink-0 border-t border-slate-100">
                                     <div className="flex items-center gap-4">
                                         <button
                                             type="submit"
@@ -2770,6 +3598,17 @@ const AdminDashboard = () => {
                     </div>
                 )}
             </AnimatePresence>
+
+            {/* Premium Custom Confirmation Overlay */}
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                onConfirm={confirmModal.onConfirm}
+                onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                confirmText={confirmModal.confirmText}
+                type={confirmModal.type}
+            />
         </div>
     );
 };

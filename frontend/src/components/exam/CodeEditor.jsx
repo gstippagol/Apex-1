@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
 
 /* ─────────────────────────────────────────────────────────────
    LANGUAGE TEMPLATES
@@ -48,10 +49,10 @@ const cleanError = (raw) => {
   // User requested "don't miss single mistake", but Python tracebacks are very noisy. 
   // Let's keep the exact Exception line which is most useful).
   if (text.includes('Traceback (most recent call last):')) {
-    return lines[lines.length - 1].trim(); 
-  }
-  if (lines.some(l => l.trim().startsWith('SyntaxError:') || l.trim().startsWith('IndentationError:'))) {
-    return lines[lines.length - 1].trim();
+    const excIndex = lines.findIndex(l => l.includes('Error:') || l.includes('Exception:'));
+    if (excIndex !== -1) {
+      return lines.slice(excIndex).join('\n');
+    }
   }
 
   // 3. For C/C++/Java/Node, return the full cleaned output so they see "In function 'main':" AND the actual errors/carets!
@@ -63,6 +64,20 @@ const cleanError = (raw) => {
 
   return filtered.join('\n');
 };
+
+/* ─────────────────────────────────────────────────────────────
+   BULLET FORMATTER HELPER
+   ───────────────────────────────────────────────────────────── */
+const getBullets = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.map(s => String(s).trim()).filter(Boolean);
+  if (typeof value === 'string') {
+    return value.split('\n').map(s => s.trim()).filter(Boolean);
+  }
+  return [];
+};
+
+
 
 /* ─────────────────────────────────────────────────────────────
    DIFFICULTY BADGE
@@ -80,18 +95,7 @@ const DiffBadge = ({ diff }) => {
   );
 };
 
-/* ─────────────────────────────────────────────────────────────
-   INFO BLOCK (input / output / constraints)
-───────────────────────────────────────────────────────────── */
-const InfoBlock = ({ icon: Icon, color, label, content }) => (
-  <div className="bg-[#1a1a2e]/50 p-4 rounded-2xl border border-white/5 flex flex-col gap-2">
-    <div className={`p-2 w-fit rounded-xl bg-white/5 ${color}`}>
-      <Icon size={16} />
-    </div>
-    <h5 className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none mt-1">{label}</h5>
-    <p className="text-xs font-semibold text-slate-300 leading-snug">{content || '—'}</p>
-  </div>
-);
+
 
 /* ─────────────────────────────────────────────────────────────
    TEST CASE PILL
@@ -121,9 +125,34 @@ const CasePill = ({ label, status, active, onClick }) => {
 const CodeEditor = ({ question, selectedAnswer, onSelect, onNext }) => {
   const { _id: questionId, codingMetadata } = question;
   const visibleCases = codingMetadata?.testCases?.filter(tc => tc.isVisible) || [];
-  const API_BASE = (window.location.hostname.includes('loca.lt') || window.location.hostname.includes('trycloudflare.com'))
-    ? `https://${window.location.host}`
-    : `http://${window.location.hostname}:5000`;
+
+  const getDisplayExamples = () => {
+    if (codingMetadata?.examples && codingMetadata.examples.length > 0) {
+      return codingMetadata.examples;
+    }
+    if (codingMetadata?.sampleInput || codingMetadata?.sampleOutput) {
+      return [{
+        input: codingMetadata.sampleInput || '',
+        output: codingMetadata.sampleOutput || '',
+        explanation: ''
+      }];
+    }
+    if (visibleCases && visibleCases.length > 0) {
+      return visibleCases.map(tc => ({
+        input: tc.input || '',
+        output: tc.expectedOutput || '',
+        explanation: ''
+      }));
+    }
+    return [];
+  };
+
+  const displayExamples = getDisplayExamples();
+  const API_BASE = (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1'))
+    ? `http://${window.location.hostname}:5000`
+    : (window.location.hostname.includes('loca.lt') || window.location.hostname.includes('trycloudflare.com'))
+      ? `https://${window.location.host}`
+      : 'https://apex-s1q2.onrender.com';
 
   const resolveImageUrl = (url) => {
     if (!url) return '';
@@ -162,7 +191,7 @@ const CodeEditor = ({ question, selectedAnswer, onSelect, onNext }) => {
     setCaseResults([]);
     setSummary(null);
     try {
-      const res = await axios.post(`http://${window.location.hostname}:5000/api/code/run`, {
+      const res = await axios.post(`${API_BASE}/api/code/run`, {
         code: currentCode,
         language,
         questionId,
@@ -201,7 +230,7 @@ const CodeEditor = ({ question, selectedAnswer, onSelect, onNext }) => {
     setCaseResults([]);   // always clear – submit never shows case pills
     setSummary(null);
     try {
-      const res = await axios.post(`http://${window.location.hostname}:5000/api/code/submit`, {
+      const res = await axios.post(`${API_BASE}/api/code/submit`, {
         code: currentCode,
         language,
         questionId,
@@ -343,30 +372,89 @@ const CodeEditor = ({ question, selectedAnswer, onSelect, onNext }) => {
 
           {/* IO & Constraints */}
           {codingMetadata && (
-            <div className="grid grid-cols-1 gap-3">
-              <InfoBlock icon={AlignLeft} color="text-amber-400" label="Input Format"  content={codingMetadata.inputDescription} />
-              <InfoBlock icon={Terminal}  color="text-emerald-400" label="Output Format" content={codingMetadata.outputDescription} />
-              <InfoBlock icon={Activity}  color="text-indigo-400" label="Constraints"   content={codingMetadata.constraints} />
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Input Format */}
+                {codingMetadata.inputDescription && getBullets(codingMetadata.inputDescription).length > 0 && (
+                  <div className="bg-[#1a1a2e]/50 p-4 rounded-2xl border border-white/5 space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-white/5 text-amber-400">
+                        <AlignLeft size={14} />
+                      </div>
+                      <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Input Format</h5>
+                    </div>
+                    <ul className="list-disc pl-5 space-y-1 text-xs text-slate-300 font-semibold leading-relaxed">
+                      {getBullets(codingMetadata.inputDescription).map((bullet, idx) => (
+                        <li key={idx} className="marker:text-slate-500">{bullet}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Output Format */}
+                {codingMetadata.outputDescription && getBullets(codingMetadata.outputDescription).length > 0 && (
+                  <div className="bg-[#1a1a2e]/50 p-4 rounded-2xl border border-white/5 space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-white/5 text-emerald-400">
+                        <Terminal size={14} />
+                      </div>
+                      <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Output Format</h5>
+                    </div>
+                    <ul className="list-disc pl-5 space-y-1 text-xs text-slate-300 font-semibold leading-relaxed">
+                      {getBullets(codingMetadata.outputDescription).map((bullet, idx) => (
+                        <li key={idx} className="marker:text-slate-500">{bullet}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {/* Constraints */}
+              {codingMetadata.constraints && getBullets(codingMetadata.constraints).length > 0 && (
+                <div className="bg-[#1a1a2e]/50 p-4 rounded-2xl border border-white/5 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-white/5 text-indigo-400">
+                      <Activity size={14} />
+                    </div>
+                    <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Constraints</h5>
+                  </div>
+                  <ul className="list-disc pl-5 space-y-1 text-xs text-slate-300 font-semibold leading-relaxed">
+                    {getBullets(codingMetadata.constraints).map((bullet, idx) => (
+                      <li key={idx} className="marker:text-slate-500">{bullet}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
 
           {/* Examples (visible test cases) */}
-          {visibleCases.length > 0 && (
+          {displayExamples.length > 0 && (
             <div className="space-y-4">
               <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                 <CheckCircle2 size={12} className="text-emerald-500" /> Examples
               </h4>
-              {visibleCases.map((tc, i) => (
+              {displayExamples.map((ex, i) => (
                 <div key={i} className="bg-[#1a1a2e]/60 border border-white/5 rounded-2xl p-4 font-mono text-xs space-y-3">
                   <p className="text-slate-500 text-[9px] font-black uppercase tracking-widest">Example {i + 1}</p>
-                  <div>
-                    <span className="text-blue-400 font-bold">Input:  </span>
-                    <span className="text-slate-300">{tc.input}</span>
-                  </div>
-                  <div>
-                    <span className="text-emerald-400 font-bold">Output: </span>
-                    <span className="text-slate-300">{tc.expectedOutput}</span>
-                  </div>
+                  {ex.input && (
+                    <div className="flex items-start gap-1">
+                      <span className="text-blue-400 font-bold shrink-0">Input:  </span>
+                      <pre className="text-slate-300 font-mono m-0 whitespace-pre-wrap leading-tight">{ex.input}</pre>
+                    </div>
+                  )}
+                  {ex.output && (
+                    <div className="flex items-start gap-1">
+                      <span className="text-emerald-400 font-bold shrink-0">Output: </span>
+                      <pre className="text-slate-300 font-mono m-0 whitespace-pre-wrap leading-tight">{ex.output}</pre>
+                    </div>
+                  )}
+                  {ex.explanation && (
+                    <div className="pt-2 border-t border-white/5 flex flex-col gap-1">
+                      <span className="text-amber-400 font-bold">Explanation:</span>
+                      <p className="text-slate-400 font-sans leading-relaxed m-0">{ex.explanation}</p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

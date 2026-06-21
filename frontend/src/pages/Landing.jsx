@@ -1,17 +1,93 @@
 import Navbar from '../components/Navbar';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, Zap, Target, BookOpen, ChevronRight, GraduationCap,
   Mail, Phone, Globe, ExternalLink, Code, MessageCircle, Info, Briefcase, X
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/logo_transparent.png';
+import axios from 'axios';
+import toast from 'react-hot-toast';
+
+const API_BASE = window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1')
+  ? 'http://localhost:5000'
+  : 'https://apex-s1q2.onrender.com';
 
 const Landing = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const [activeModal, setActiveModal] = useState(null);
+
+  // Feedback Portal States
+  const [feedbackCategory, setFeedbackCategory] = useState('Exams');
+  const [feedbackName, setFeedbackName] = useState('');
+  const [feedbackEmail, setFeedbackEmail] = useState('');
+  const [feedbackUsn, setFeedbackUsn] = useState('');
+  const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+
+  // Auto-fill logged-in user details
+  useEffect(() => {
+    if (user) {
+      setFeedbackName(user.name || '');
+      setFeedbackEmail(user.email || '');
+      setFeedbackUsn(user.usn || '');
+    } else {
+      setFeedbackName('');
+      setFeedbackEmail('');
+      setFeedbackUsn('');
+    }
+  }, [user, activeModal]);
+
+  useEffect(() => {
+    if (location.hash) {
+      const hash = location.hash.substring(1);
+      const element = document.getElementById(hash);
+      if (element) {
+        const timer = setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [location]);
+
+  useEffect(() => {
+    const handleSecurity = (e) => {
+        e.preventDefault();
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.keyCode === 123 || // F12
+            (e.ctrlKey && e.shiftKey && e.keyCode === 73) || // Ctrl+Shift+I
+            (e.ctrlKey && e.shiftKey && e.keyCode === 74) || // Ctrl+Shift+J
+            (e.ctrlKey && e.shiftKey && e.keyCode === 67) || // Ctrl+Shift+C
+            (e.ctrlKey && e.keyCode === 85)) {               // Ctrl+U
+            e.preventDefault();
+        }
+    };
+
+    const blockDevTools = setInterval(() => {
+        Function("debugger")();
+    }, 50);
+
+    document.addEventListener('copy', handleSecurity);
+    document.addEventListener('paste', handleSecurity);
+    document.addEventListener('cut', handleSecurity);
+    document.addEventListener('contextmenu', handleSecurity);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+        clearInterval(blockDevTools);
+        document.removeEventListener('copy', handleSecurity);
+        document.removeEventListener('paste', handleSecurity);
+        document.removeEventListener('cut', handleSecurity);
+        document.removeEventListener('contextmenu', handleSecurity);
+        document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
   const features = [
     {
       icon: <Shield className="w-8 h-8 text-blue-500" />,
@@ -37,6 +113,205 @@ const Landing = () => {
 
   const renderModal = () => {
     if (!activeModal) return null;
+
+    if (activeModal === 'feedback') {
+      const handleFeedbackSubmit = async (e) => {
+        e.preventDefault();
+        if (!feedbackText.trim()) {
+          toast.error('Please enter your feedback message.');
+          return;
+        }
+        if (!feedbackName.trim()) {
+          toast.error('Please enter your name.');
+          return;
+        }
+        if (!feedbackEmail.trim()) {
+          toast.error('Please enter your email.');
+          return;
+        }
+
+        setFeedbackSubmitting(true);
+        try {
+          const config = {};
+          const token = localStorage.getItem('token');
+          if (token) {
+            config.headers = {
+              'Authorization': `Bearer ${token}`
+            };
+          }
+
+          const res = await axios.post(`${API_BASE}/api/feedback`, {
+            name: feedbackName,
+            email: feedbackEmail,
+            usn: feedbackUsn,
+            category: feedbackCategory,
+            message: feedbackText
+          }, config);
+
+          if (res.data.success) {
+            toast.success('Thank you! Your feedback has been received.', {
+              icon: '🎉',
+              style: {
+                borderRadius: '12px',
+                background: '#1e293b',
+                color: '#fff',
+                fontWeight: '600'
+              }
+            });
+            setFeedbackText('');
+            setActiveModal(null);
+          }
+        } catch (err) {
+          toast.error(err.response?.data?.message || 'Failed to submit feedback. Please try again.');
+        } finally {
+          setFeedbackSubmitting(false);
+        }
+      };
+
+      return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+            className="bg-[#0f172a] border border-slate-800 rounded-3xl w-full max-w-xl md:max-w-2xl max-h-[95vh] sm:max-h-[90vh] shadow-2xl overflow-hidden text-slate-100 flex flex-col"
+          >
+            <div className="relative p-6 md:p-8 border-b border-slate-800/80 flex items-center justify-between bg-gradient-to-r from-blue-900/20 to-indigo-900/20 shrink-0">
+              <div>
+                <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest block mb-1">Feedback Portal</span>
+                <h3 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                  <MessageCircle size={22} className="text-blue-500" /> Share Your Thoughts
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveModal(null)}
+                className="w-8 h-8 rounded-full bg-slate-800/50 hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white border border-slate-700/30 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleFeedbackSubmit} className="p-6 md:p-8 space-y-5 overflow-y-auto custom-scrollbar flex-1">
+              {/* Category Pills */}
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-3">What is this regarding?</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {['Exams', 'Website', 'Apex Club', 'General'].map((cat) => {
+                    const isActive = feedbackCategory === cat;
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setFeedbackCategory(cat)}
+                        className={`py-3 px-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all border text-center ${isActive
+                          ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-600/20 scale-[1.02]'
+                          : 'bg-slate-900 border-slate-800/80 text-slate-400 hover:text-slate-300 hover:bg-slate-800/50'
+                          }`}
+                      >
+                        {cat === 'Exams' && '📝 '}
+                        {cat === 'Website' && '🌐 '}
+                        {cat === 'Apex Club' && '⚡ '}
+                        {cat === 'General' && '💬 '}
+                        {cat}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Name, Email & USN Fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Your Email</label>
+                  <input
+                    type="email"
+                    required
+                    disabled={!!user}
+                    value={feedbackEmail}
+                    onChange={(e) => setFeedbackEmail(e.target.value)}
+                    placeholder="Enter your email"
+                    className={`w-full px-4 py-3 border rounded-xl text-sm font-bold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all ${!!user ? 'bg-slate-900/50 border-slate-800 text-slate-400 cursor-not-allowed' : 'bg-slate-950 border-slate-800'
+                      }`}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Your Name</label>
+                  <input
+                    type="text"
+                    required
+                    disabled={!!user}
+                    value={feedbackName}
+                    onChange={(e) => setFeedbackName(e.target.value)}
+                    placeholder="Enter your name"
+                    className={`w-full px-4 py-3 border rounded-xl text-sm font-bold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all ${!!user ? 'bg-slate-900/50 border-slate-800 text-slate-400 cursor-not-allowed' : 'bg-slate-950 border-slate-800'
+                      }`}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Your USN</label>
+                  <input
+                    type="text"
+                    disabled={!!user}
+                    value={feedbackUsn}
+                    onChange={(e) => setFeedbackUsn(e.target.value.toUpperCase())}
+                    placeholder="Enter USN"
+                    className={`w-full px-4 py-3 border rounded-xl text-sm font-bold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all ${!!user ? 'bg-slate-900/50 border-slate-800 text-slate-400 cursor-not-allowed' : 'bg-slate-950 border-slate-800'
+                      }`}
+                  />
+                </div>
+              </div>
+
+              {/* Feedback Textarea */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Feedback Details</label>
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{feedbackText.length}/1000</span>
+                </div>
+                <textarea
+                  required
+                  maxLength={1000}
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value)}
+                  placeholder={`Write your feedback about ${feedbackCategory} here...`}
+                  rows={4}
+                  className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm font-medium text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all resize-none leading-relaxed"
+                />
+              </div>
+
+              {/* Buttons */}
+              <div className="pt-4 border-t border-slate-800/80 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setActiveModal(null)}
+                  className="px-5 py-3 text-slate-400 hover:text-white font-black text-[10px] uppercase tracking-widest transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={feedbackSubmitting}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-blue-600/10 flex items-center gap-2"
+                >
+                  {feedbackSubmitting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-1 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Sending...
+                    </>
+                  ) : (
+                    'Submit Feedback'
+                  )}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      );
+    }
 
     const modals = {
       privacy: {
@@ -231,8 +506,8 @@ const Landing = () => {
 
         <div className="max-w-7xl mx-auto px-6">
           {/* Top Row: Grid Header */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 mb-12 pb-12 border-b border-slate-800">
-            <div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-x-6 gap-y-10 md:gap-8 mb-12 pb-12 border-b border-slate-800">
+            <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-6">
                 <div className="w-8 h-8 bg-white rounded-lg p-1">
                   <img src={logo} alt="APEX" className="w-full h-full object-contain" />
@@ -247,6 +522,7 @@ const Landing = () => {
               <ul className="space-y-3 text-xs font-bold">
                 <li><Link to="/" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-blue-500 transition-colors">Home</Link></li>
                 <li><Link to={!user ? "/login" : (user.role === 'admin' || user.role === 'superadmin') ? "/admin" : "/student"} className="hover:text-blue-500 transition-colors">Enter Portal</Link></li>
+                <li><button onClick={() => { setActiveModal('feedback'); setFeedbackCategory('Exams'); setFeedbackText(''); }} className="hover:text-blue-500 transition-colors text-left">Feedback</button></li>
               </ul>
             </div>
             <div>
@@ -337,9 +613,9 @@ const Landing = () => {
                     <a href="https://github.com/gopalst" className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/50 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg border border-slate-700/50 transition-all text-[9px] font-black uppercase tracking-widest">
                       <Code size={12} /> Projects
                     </a>
-                    <a href="https://www.instagram.com/gopal_st_31?igsh=MWg4a3p3MzV3YmRkcA==" className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/50 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg border border-slate-700/50 transition-all text-[9px] font-black uppercase tracking-widest">
+                    {/* <a href="https://www.instagram.com/gopal_st_31?igsh=MWg4a3p3MzV3YmRkcA==" className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/50 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg border border-slate-700/50 transition-all text-[9px] font-black uppercase tracking-widest">
                       <Globe size={12} /> Social Media
-                    </a>
+                    </a> */}
                   </div>
                 </div>
               </div>

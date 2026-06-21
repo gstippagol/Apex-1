@@ -51,10 +51,19 @@ const quizResultSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    violations: {
+        tabSwitches: { type: Number, default: 0 },
+        fullscreenExits: { type: Number, default: 0 }
+    },
     status: {
         type: String,
         enum: ['Ongoing', 'Submitted'],
         default: 'Submitted'
+    },
+    submissionType: {
+        type: String,
+        enum: ['Normal', 'Auto'],
+        default: 'Normal'
     },
     verdict: {
         type: String,

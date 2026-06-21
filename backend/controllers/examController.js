@@ -67,9 +67,9 @@ exports.updateExam = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Exam not found' });
         }
 
-        // Restriction: No editing if Ongoing
-        if (exam.status === 'Ongoing') {
-            return res.status(400).json({ success: false, message: 'Cannot edit an ongoing exam' });
+        // Restriction: No editing if Ongoing or Published
+        if (exam.status === 'Ongoing' || exam.status === 'Published') {
+            return res.status(400).json({ success: false, message: 'Cannot edit an ongoing or published exam' });
         }
 
         exam = await Exam.findByIdAndUpdate(req.params.id, req.body, {
@@ -141,9 +141,9 @@ exports.deleteExam = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Exam not found' });
         }
 
-        // Restriction: No delete if Ongoing
-        if (exam.status === 'Ongoing') {
-            return res.status(400).json({ success: false, message: 'Cannot delete an ongoing exam' });
+        // Restriction: No delete if Ongoing or Published
+        if (exam.status === 'Ongoing' || exam.status === 'Published') {
+            return res.status(400).json({ success: false, message: 'Cannot delete an ongoing or published exam' });
         }
 
         // Delete all associated questions

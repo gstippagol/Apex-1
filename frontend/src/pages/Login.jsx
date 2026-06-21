@@ -24,21 +24,47 @@ const Login = () => {
             e.preventDefault();
         };
 
+        const handleKeyDown = (e) => {
+            if (e.keyCode === 123 || // F12
+                (e.ctrlKey && e.shiftKey && e.keyCode === 73) || // Ctrl+Shift+I
+                (e.ctrlKey && e.shiftKey && e.keyCode === 74) || // Ctrl+Shift+J
+                (e.ctrlKey && e.shiftKey && e.keyCode === 67) || // Ctrl+Shift+C
+                (e.ctrlKey && e.keyCode === 85)) {               // Ctrl+U
+                e.preventDefault();
+            }
+        };
+
+        const blockDevTools = setInterval(() => {
+            Function("debugger")();
+        }, 50);
+
         document.addEventListener('copy', handleSecurity);
         document.addEventListener('paste', handleSecurity);
         document.addEventListener('cut', handleSecurity);
         document.addEventListener('contextmenu', handleSecurity);
+        document.addEventListener('keydown', handleKeyDown);
 
         return () => {
+            clearInterval(blockDevTools);
             document.removeEventListener('copy', handleSecurity);
             document.removeEventListener('paste', handleSecurity);
             document.removeEventListener('cut', handleSecurity);
             document.removeEventListener('contextmenu', handleSecurity);
+            document.removeEventListener('keydown', handleKeyDown);
         };
     }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        const emailDomain = formData.email.split('@')[1]?.toLowerCase() || '';
+        const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 'aol.com', 'protonmail.com', 'zoho.com', 'live.com', 'msn.com', 'ymail.com', 'googlemail.com', 'apex.com'];
+        const isEduDomain = emailDomain.endsWith('.edu') || emailDomain.endsWith('.edu.in') || emailDomain.endsWith('.ac.in');
+        
+        if (!allowedDomains.includes(emailDomain) && !isEduDomain) {
+            return toast.error('Please use a valid institution or primary email provider (e.g. Gmail, Outlook, .edu). Temporary emails are strictly blocked.');
+        }
+
         setLoading(true);
         try {
             const res = await login(formData.email, formData.password);
@@ -56,6 +82,15 @@ const Login = () => {
 
     const handleForgotRequest = async (e) => {
         e.preventDefault();
+        
+        const emailDomain = forgotEmail.split('@')[1]?.toLowerCase() || '';
+        const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 'aol.com', 'protonmail.com', 'zoho.com', 'live.com', 'msn.com', 'ymail.com', 'googlemail.com', 'apex.com'];
+        const isEduDomain = emailDomain.endsWith('.edu') || emailDomain.endsWith('.edu.in') || emailDomain.endsWith('.ac.in');
+        
+        if (!allowedDomains.includes(emailDomain) && !isEduDomain) {
+            return toast.error('Please use a valid institution or primary email provider (e.g. Gmail, Outlook, .edu). Temporary emails are strictly blocked.');
+        }
+
         setIsForgotLoading(true);
         try {
             const res = await forgotPassword(forgotEmail);
@@ -73,7 +108,20 @@ const Login = () => {
     const handleResetPassword = async (e) => {
         e.preventDefault();
         if (forgotOTP.length !== 6) return toast.error('Invalid 6-digit code');
-        if (newPassword.length < 6) return toast.error('Password must be at least 6 characters');
+        
+        // Password strength validation
+        if (newPassword.length < 10 || newPassword.length > 16) {
+            return toast.error('Password must be between 10 and 16 characters long');
+        }
+        if (!/[A-Z]/.test(newPassword)) {
+            return toast.error('Password must contain at least one uppercase letter');
+        }
+        if (!/[a-z]/.test(newPassword)) {
+            return toast.error('Password must contain at least one lowercase letter');
+        }
+        if (!/[^A-Za-z0-9]/.test(newPassword)) {
+            return toast.error('Password must contain at least one special character');
+        }
         
         setIsForgotLoading(true);
         try {
@@ -104,8 +152,8 @@ const Login = () => {
             >
                 <div className="text-center mb-8">
                     <div className="flex justify-center mb-6">
-                        <div className="w-16 h-16 bg-slate-50 p-2 rounded-2xl border border-slate-100 shadow-inner">
-                            <img src={logo} alt="APEX" className="w-full h-full object-contain" />
+                        <div className="w-24 h-24 bg-slate-50 p-2 rounded-2xl border border-slate-100 shadow-inner">
+                            <img src={logo} alt="APEX" className="w-full h-full object-contain scale-110" />
                         </div>
                     </div>
                     <h2 className="text-3xl font-bold mb-2">Welcome Back</h2>
@@ -141,15 +189,17 @@ const Login = () => {
                                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                             />
                         </div>
-                        <div className="flex justify-end mt-2">
-                            <button 
-                                type="button" 
-                                onClick={() => setShowForgotModal(true)}
-                                className="text-xs font-bold text-slate-400 hover:text-blue-600 transition-all uppercase tracking-widest"
-                            >
-                                Forgot Password?
-                            </button>
-                        </div>
+                        {settings?.isEmailEnabled !== false && (
+                            <div className="flex justify-end mt-2">
+                                <button 
+                                    type="button" 
+                                    onClick={() => setShowForgotModal(true)}
+                                    className="text-xs font-bold text-slate-400 hover:text-blue-600 transition-all uppercase tracking-widest"
+                                >
+                                    Forgot Password?
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     <button 
@@ -266,7 +316,8 @@ const Login = () => {
                                                     <input 
                                                         type="password" 
                                                         required 
-                                                        minlength={6}
+                                                        minLength={10}
+                                                        maxLength={16}
                                                         value={newPassword} 
                                                         onChange={e => setNewPassword(e.target.value)}
                                                         className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"

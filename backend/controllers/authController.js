@@ -16,7 +16,19 @@ exports.sendOTP = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Registration protocol is currently offline. Please contact administrator.' });
         }
 
+        if (settings && settings.isEmailEnabled === false) {
+            return res.status(403).json({ success: false, message: 'Email verification services are currently offline. Please contact administrator.' });
+        }
+
         const { email, name, usn, mobileNumber } = req.body;
+
+        const emailDomain = email.split('@')[1]?.toLowerCase() || '';
+        const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 'aol.com', 'protonmail.com', 'zoho.com', 'live.com', 'msn.com', 'ymail.com', 'googlemail.com', 'apex.com'];
+        const isEduDomain = emailDomain.endsWith('.edu') || emailDomain.endsWith('.edu.in') || emailDomain.endsWith('.ac.in');
+        
+        if (!allowedDomains.includes(emailDomain) && !isEduDomain) {
+            return res.status(400).json({ success: false, message: 'Please use a valid institution or primary email provider. Temporary emails are blocked.' });
+        }
 
         // Check for duplicates before sending OTP
         const existingEmail = await User.findOne({ email });
@@ -96,6 +108,18 @@ exports.verifyOTP = async (req, res) => {
 
         const { name, email, password, role, department, usn, mobileNumber, otp } = req.body;
 
+        if (!password || password.length < 10 || password.length > 16 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Password must be 10-16 characters with at least one uppercase letter, one lowercase letter, and one special character.' 
+            });
+        }
+
+        // Role Restriction: Self-registered users can only be registered as students
+        if (role && role !== 'student') {
+            return res.status(403).json({ success: false, message: 'Authorization Failure: Self-registered accounts are restricted to student roles' });
+        }
+
         // Verify OTP
         const otpRecord = await OTP.findOne({ email, otp });
         if (!otpRecord) {
@@ -132,6 +156,20 @@ exports.verifyOTP = async (req, res) => {
 exports.forgotPassword = async (req, res) => {
     try {
         const { email } = req.body;
+
+        const emailDomain = email.split('@')[1]?.toLowerCase() || '';
+        const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 'aol.com', 'protonmail.com', 'zoho.com', 'live.com', 'msn.com', 'ymail.com', 'googlemail.com', 'apex.com'];
+        const isEduDomain = emailDomain.endsWith('.edu') || emailDomain.endsWith('.edu.in') || emailDomain.endsWith('.ac.in');
+        
+        if (!allowedDomains.includes(emailDomain) && !isEduDomain) {
+            return res.status(400).json({ success: false, message: 'Please use a valid institution or primary email provider. Temporary emails are blocked.' });
+        }
+
+        const settings = await Settings.findOne();
+        if (settings && settings.isEmailEnabled === false) {
+            return res.status(403).json({ success: false, message: 'Email recovery services are currently offline. Please contact administrator.' });
+        }
+
         const user = await User.findOne({ email });
         
         if (!user) {
@@ -191,6 +229,13 @@ exports.resetPassword = async (req, res) => {
     try {
         const { email, otp, newPassword } = req.body;
 
+        if (!newPassword || newPassword.length < 10 || newPassword.length > 16 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[^A-Za-z0-9]/.test(newPassword)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Password must be 10-16 characters with at least one uppercase letter, one lowercase letter, and one special character.' 
+            });
+        }
+
         // Verify OTP
         const otpRecord = await OTP.findOne({ email, otp });
         if (!otpRecord) {
@@ -225,6 +270,21 @@ exports.register = async (req, res) => {
     try {
         const { name, email, password, role, department, usn, mobileNumber } = req.body;
 
+        if (!password || password.length < 10 || password.length > 16 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Password must be 10-16 characters with at least one uppercase letter, one lowercase letter, and one special character.' 
+            });
+        }
+
+        const emailDomain = email.split('@')[1]?.toLowerCase() || '';
+        const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 'aol.com', 'protonmail.com', 'zoho.com', 'live.com', 'msn.com', 'ymail.com', 'googlemail.com', 'apex.com'];
+        const isEduDomain = emailDomain.endsWith('.edu') || emailDomain.endsWith('.edu.in') || emailDomain.endsWith('.ac.in');
+        
+        if (!allowedDomains.includes(emailDomain) && !isEduDomain) {
+            return res.status(400).json({ success: false, message: 'Please use a valid institution or primary email provider. Temporary emails are blocked.' });
+        }
+
         // Check if registration is allowed (Only for self-registration, bypass for admins)
         const settings = await Settings.findOne();
         const isRegistrationOpen = settings ? settings.isRegistrationOpen : true;
@@ -247,6 +307,11 @@ exports.register = async (req, res) => {
         // Hierarchy Enforcement: Admins cannot create Super Admins
         if (requesterRole === 'admin' && role === 'superadmin') {
             return res.status(403).json({ success: false, message: 'Authorization Failure: Admins cannot provision Super Admin accounts' });
+        }
+
+        // Role Restriction: Guests/non-admins cannot register administrative accounts
+        if (requesterRole !== 'admin' && requesterRole !== 'superadmin' && role && role !== 'student') {
+            return res.status(403).json({ success: false, message: 'Authorization Failure: Guests are only authorized to register as students' });
         }
 
         // Enforcement: Only admins can register if registration is off
@@ -315,8 +380,8 @@ exports.register = async (req, res) => {
             mobileNumber
         });
 
-        // Onboarding Email (Only for Manual Registration by Admin/SuperAdmin)
-        if (requesterRole === 'admin' || requesterRole === 'superadmin') {
+        // Onboarding Email (Only for Manual Registration by Admin/SuperAdmin if email service is active)
+        if ((requesterRole === 'admin' || requesterRole === 'superadmin') && (!settings || settings.isEmailEnabled !== false)) {
             try {
                 const transporter = nodemailer.createTransport({
                     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
@@ -349,12 +414,17 @@ exports.register = async (req, res) => {
                                 <p style="margin: 10px 0;"><strong>Mobile Mesh:</strong> ${mobileNumber}</p>
                             </div>
 
-                            <div style="text-align: center; margin-top: 35px;">
-                                <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/login" 
-                                   style="background: #2563eb; color: #ffffff; padding: 15px 35px; border-radius: 12px; text-decoration: none; font-weight: bold; display: inline-block; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);">
-                                   Access Login Terminal
-                                </a>
-                            </div>
+                            <table border="0" cellpadding="0" cellspacing="0" style="margin: 35px auto 0 auto; text-align: center;">
+                                <tr>
+                                    <td align="center" bgcolor="#2563eb" style="border-radius: 12px;">
+                                        <a href="${process.env.FRONTEND_URL || 'https://apexclub-muse.netlify.app'}/login" 
+                                           target="_blank"
+                                           style="font-size: 16px; font-family: sans-serif; color: #ffffff; text-decoration: none; border-radius: 12px; padding: 15px 35px; border: 1px solid #2563eb; display: inline-block; font-weight: bold; background-color: #2563eb; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);">
+                                           Access Login Terminal
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
                             
                             <p style="color: #64748b; font-size: 12px; text-align: center; margin-top: 40px; border-top: 1px solid #eee; pt: 20px;">
                                 Security Protocol: Please change your passkey upon initial access for maximum security.
@@ -384,6 +454,14 @@ exports.login = async (req, res) => {
 
         if (!email || !password) {
             return res.status(400).json({ success: false, message: 'Please provide email and password' });
+        }
+
+        const emailDomain = email.split('@')[1]?.toLowerCase() || '';
+        const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 'aol.com', 'protonmail.com', 'zoho.com', 'live.com', 'msn.com', 'ymail.com', 'googlemail.com', 'apex.com'];
+        const isEduDomain = emailDomain.endsWith('.edu') || emailDomain.endsWith('.edu.in') || emailDomain.endsWith('.ac.in');
+        
+        if (!allowedDomains.includes(emailDomain) && !isEduDomain) {
+            return res.status(400).json({ success: false, message: 'Please use a valid institution or primary email provider. Temporary emails are blocked.' });
         }
 
         const user = await User.findOne({ email }).select('+password');
@@ -475,13 +553,13 @@ exports.getUserDetail = async (req, res) => {
         if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
         const results = await Result.find({ userId: req.params.id }).populate('examId', 'title');
-        const exams = await Exam.find(); // All available exams
+        const pastExams = await Exam.find({ status: { $in: ['Completed', 'Stopped'] } });
 
         // Performance Logic
-        const attendedExamIds = results.map(r => r.examId._id.toString());
-        const totalExams = exams.length;
+        const attendedExamIds = results.map(r => r.examId && r.examId._id ? r.examId._id.toString() : null).filter(Boolean);
         const attendedCount = results.length;
-        const absentCount = Math.max(0, totalExams - attendedCount);
+        const absentCount = pastExams.filter(exam => !attendedExamIds.includes(exam._id.toString())).length;
+        const totalExams = attendedCount + absentCount;
 
         res.status(200).json({
             success: true,

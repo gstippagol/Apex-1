@@ -49,7 +49,8 @@ const resultSchema = new mongoose.Schema({
     ],
     violations: {
         tabSwitches: { type: Number, default: 0 },
-        fullscreenExits: { type: Number, default: 0 }
+        fullscreenExits: { type: Number, default: 0 },
+        aiViolations: { type: Number, default: 0 }
     },
     isPublished: {
         type: Boolean,
